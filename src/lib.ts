@@ -404,7 +404,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 		if (isCallExpression(callExpression)) {
 			let expression = callExpression.expression;
 			if (isPropertyAccessExpression(expression)) {
-				if (expression.name.text === 'load') {
+				if (expression.name.text === 'loadMessageBundle') {
 					// We have a load call like nls.load();
 					memo.push(callExpression);
 				} else if (expression.name.text === 'config') {
