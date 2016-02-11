@@ -68,4 +68,18 @@ describe('Localize', () => {
 			]
 		});
 	});
+	it('loadMessageBundle', () => {
+		let code: string[] = [
+			"var nls = require('vscode-nls');",
+			"var localize = nls.loadMessageBundle();",
+			"localize('keyOne', '{0} {1}', 'Hello', 'World');"
+		];
+		let result = nlsDev.processFile(code.join('\n'));
+		let expected: string[] = [
+			"var nls = require('vscode-nls');",
+			"var localize = nls.loadMessageBundle(__filename);",
+			"localize(0, null, 'Hello', 'World');"
+		];
+		assert.strictEqual(result.contents, expected.join('\n'));
+	})
 });
