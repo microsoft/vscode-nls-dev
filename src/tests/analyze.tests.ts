@@ -6,7 +6,7 @@
 
 import * as assert from 'assert';
 
-import * as nlsDev from '../main';
+import * as nlsDev from '../lib';
 
 describe('Localize', () => {
 	it('Analyze Simple Key', () => {

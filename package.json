@@ -1,34 +1,36 @@
 {
-	"name": "vscode-nls-dev",
-	"version": "1.0.0",
-	"description": "Development time npm module to generate strings bundles from Javascript files",
-	"author": "Microsoft Corporation",
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/Microsoft/vscode-nls-dev.git"
-	},
-	"bugs": {
-		"url": "https://github.com/Microsoft/vscode-nls-dev/issues"
-	},
-	"main": "./lib/main.js",
-	"typings": "./lib/main",
-	"bin": {
-		"vscl": "./bib/vscl"
-	},
-	"devDependencies": {
-		"mocha": "^2.3.2"
-	},
-	"dependencies": {
-		"clone": "^1.0.2",
-		"glob": "^6.0.4",
-		"source-map": "^0.5.3",
-		"typescript": "^1.7.5",
-		"yargs": "^3.32.0"
-	},
-	"scripts": {
-		"prepublish": "tsc -p ./src",
-		"compile": "tsc -p ./src",
-		"watch": "tsc -w -p ./src"
-	}
+  "name": "vscode-nls-dev",
+  "version": "1.0.0",
+  "description": "Development time npm module to generate strings bundles from Javascript files",
+  "author": "Microsoft Corporation",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Microsoft/vscode-nls-dev.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Microsoft/vscode-nls-dev/issues"
+  },
+  "main": "./lib/main.js",
+  "typings": "./lib/main",
+  "bin": {
+    "vscl": "./bib/vscl"
+  },
+  "devDependencies": {
+    "mocha": "^2.3.2"
+  },
+  "dependencies": {
+    "clone": "^1.0.2",
+    "event-stream": "^3.3.2",
+    "glob": "^6.0.4",
+    "source-map": "^0.5.3",
+    "typescript": "^1.7.5",
+    "vinyl": "^1.1.1",
+    "yargs": "^3.32.0"
+  },
+  "scripts": {
+    "prepublish": "tsc -p ./src",
+    "compile": "tsc -p ./src",
+    "watch": "tsc -w -p ./src"
+  }
 }

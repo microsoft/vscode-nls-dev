@@ -27,6 +27,16 @@
 			"sourceMaps": true,
 			// If JavaScript source maps are enabled, the generated code is expected in this directory.
 			"outDir": "${workspaceRoot}/lib"
+		},
+		{
+			"request": "launch",
+			"name": "vscl",
+			"type": "node",
+			"program": "${workspaceRoot}/lib/vscl.js",
+			"cwd": "P:\\tmp\\testData",
+			"args" : ["--outDir", "P:\\tmp\\out", "test.js"],
+			"sourceMaps": true,
+			"outDir": "${workspaceRoot}/lib"
 		}
 	]
 }
