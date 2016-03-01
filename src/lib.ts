@@ -485,7 +485,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 									text = element.getText();
 									comment.push(text.substr(1, text.length - 2));
 								}
-							})
+							});
 						}
 					}
 				}
