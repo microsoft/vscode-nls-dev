@@ -14,7 +14,7 @@
   "main": "./lib/main.js",
   "typings": "./lib/main",
   "bin": {
-    "vscl": "./bib/vscl"
+    "vscl": "./bin/vscl"
   },
   "devDependencies": {
     "mocha": "^2.3.2"
