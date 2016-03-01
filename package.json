@@ -1,6 +1,6 @@
 {
 	"name": "vscode-nls-dev",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Development time npm module to generate strings bundles from Javascript files",
 	"author": "Microsoft Corporation",
 	"license": "MIT",
@@ -14,7 +14,7 @@
 	"main": "./lib/main.js",
 	"typings": "./lib/main",
 	"bin": {
-		"vscl": "./bin/vscl"
+		"vscl": "./lib/vscl.js"
 	},
 	"devDependencies": {
 		"mocha": "^2.3.2"
