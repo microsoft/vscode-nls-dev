@@ -84,17 +84,21 @@ argv._.forEach(element => {
 						sourceMapOutFile = path.join(outDir, sourceMapFile);
 					}
 				}
-				let dirname = path.dirname(outFile);
-				if (!fs.existsSync(dirname)) {
-					fs.mkdirSync(path.dirname(outFile));
+				if (result.contents) {
+					let dirname = path.dirname(outFile);
+					if (!fs.existsSync(dirname)) {
+						fs.mkdirSync(path.dirname(outFile));
+					}
+					fs.writeFileSync(outFile, result.contents, { encoding: 'utf8' });
 				}
-				fs.writeFileSync(outFile, result.contents, { encoding: 'utf8' });
-				if (sourceMapOutFile) {
+				if (sourceMapOutFile && result.sourceMap) {
 					fs.writeFileSync(sourceMapOutFile, result.sourceMap, { encoding: 'utf8' });
 				}
-				let extension = path.extname(outFile);
-				let bundlefile = outFile.substr(0, outFile.length - extension.length) + '.nls.json';
-				fs.writeFileSync(bundlefile, JSON.stringify(result.bundle, null, 4), { encoding: 'utf8' });
+				if (result.bundle) {
+					let extension = path.extname(outFile);
+					let bundlefile = outFile.substr(0, outFile.length - extension.length) + '.nls.json';
+					fs.writeFileSync(bundlefile, JSON.stringify(result.bundle, null, 4), { encoding: 'utf8' });
+				}
 			}
 		});
 	});
