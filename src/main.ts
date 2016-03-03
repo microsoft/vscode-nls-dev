@@ -33,14 +33,20 @@ export function rewriteLocalizeCalls(): ThroughStream {
 				result.errors.forEach(error => console.error(`${file.relative}${error}`));
 				this.emit('error', `Failed to rewite file: ${file.relative}`);
 			} else {
-				file.contents = new Buffer(result.contents, 'utf8');
-				file.sourceMap = JSON.parse(result.sourceMap);
-				let ext = path.extname(file.path);
-				bundleFile = new File({
-					base: file.base,
-					path: file.path.substr(0, file.path.length - ext.length) + '.nls.json',
-					contents: new Buffer(JSON.stringify(result.bundle, null, 4), 'utf8')
-				});
+				if (result.contents) {
+					file.contents = new Buffer(result.contents, 'utf8');
+				}
+				if (result.sourceMap) {
+					file.sourceMap = JSON.parse(result.sourceMap);
+				}
+				if (result.bundle) {
+					let ext = path.extname(file.path);
+					bundleFile = new File({
+						base: file.base,
+						path: file.path.substr(0, file.path.length - ext.length) + '.nls.json',
+						contents: new Buffer(JSON.stringify(result.bundle, null, 4), 'utf8')
+					});
+				}
 			}
 			this.emit('data', file);
 			if (bundleFile) {
