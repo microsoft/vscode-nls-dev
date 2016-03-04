@@ -52,8 +52,6 @@ export function rewriteLocalizeCalls(): ThroughStream {
 			if (bundleFile) {
 				this.emit('data', bundleFile);
 			}
-		},
-		function () {
 		}
 	);
 }
