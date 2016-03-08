@@ -5,11 +5,18 @@
 'use strict';
 
 import * as path from 'path';
+import * as fs from 'fs';
 
 import * as ts from 'typescript';
 import { RawSourceMap, SourceMapConsumer, SourceMapGenerator } from 'source-map';
 
 import clone = require('clone');
+import { ThroughStream } from 'through';
+import { through } from 'event-stream';
+
+export interface Map<V> {
+	[key: string]: V;
+}
 
 class SingleFileServiceHost implements ts.LanguageServiceHost {
 
@@ -45,11 +52,17 @@ export interface LocalizeInfo {
 	comment: string[];
 }
 
-export type KeyInfo = string | { key: string; comment: string[] };
+export type KeyInfo = string | LocalizeInfo;
 
 export interface MessageBundle {
 	messages: string[];
 	keys: KeyInfo[];
+}
+
+export interface ResolvedMessageBundle {
+	messages: string[];
+	keys: string[];
+	map: Map<string>;
 }
 
 interface AnalysisResult {
@@ -564,4 +577,70 @@ export function processFile(contents: string, sourceMap?: string | RawSourceMap)
 		bundle: analysisResult.bundle,
 		errors: analysisResult.errors
 	};
+}
+
+function stripComments(content: string): string {
+	/**
+	* First capturing group matches double quoted string
+	* Second matches single quotes string
+	* Third matches block comments
+	* Fourth matches line comments
+	*/
+	var regexp: RegExp = /("(?:[^\\\"]*(?:\\.)?)*")|('(?:[^\\\']*(?:\\.)?)*')|(\/\*(?:\r?\n|.)*?\*\/)|(\/{2,}.*?(?:(?:\r?\n)|$))/g;
+	let result = content.replace(regexp, (match, m1, m2, m3, m4) => {
+		// Only one of m1, m2, m3, m4 matches
+		if (m3) {
+			// A block comment. Replace with nothing
+			return '';
+		} else if (m4) {
+			// A line comment. If it ends in \r?\n then keep it.
+			let length = m4.length;
+			if (length > 2 && m4[length - 1] === '\n') {
+				return m4[length - 2] === '\r' ? '\r\n': '\n';
+			} else {
+				return '';
+			}
+		} else {
+			// We match a string
+			return match;
+		}
+	});
+	return result;
+};
+
+export function resolveMessageBundle(bundle: MessageBundle): ResolvedMessageBundle {
+	if (bundle.messages.length !== bundle.keys.length) {
+		return null;
+	}
+	let keys: string[] = [];
+	let map: Map<string> = Object.create(null);
+	bundle.keys.forEach((key, index) => {
+		let resolvedKey = isString(key) ? key : key.key;
+		keys.push(resolvedKey);
+		map[resolvedKey] = bundle.messages[index];
+	});
+	return { messages: bundle.messages, keys: keys, map };
+}
+
+export function createLocalizedMessages(filename: string, bundle: ResolvedMessageBundle, language: string, i18nBaseDir: string, component: string): string[] {
+	let i18nFile = path.join(i18nBaseDir, language, component, filename) + '.i18n.json';
+	let messages: Map<string>;
+	
+	if (fs.existsSync(i18nFile)) {
+		let content = stripComments(fs.readFileSync(i18nFile, 'utf8'));
+		messages = JSON.parse(content);
+	}
+	if (!messages) {
+		return bundle.messages;
+	}
+	let result: string[] = [];
+	bundle.keys.forEach(key => {
+		let translated = messages[key];
+		if (isString(translated)) {
+			result.push(translated);
+		} else {
+			result.push(bundle.map[key])
+		}
+	});
+	return result;
 }

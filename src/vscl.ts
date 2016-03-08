@@ -12,7 +12,7 @@ import * as url from 'url';
 import * as yargs from 'yargs';
 import * as glob from 'glob';
 
-import { processFile } from './main';
+import { processFile } from './lib';
 
 
 let argv = yargs
