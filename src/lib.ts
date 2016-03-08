@@ -54,21 +54,64 @@ export interface LocalizeInfo {
 
 export type KeyInfo = string | LocalizeInfo;
 
-export interface MessageBundle {
+export interface JavaScriptMessageBundle {
 	messages: string[];
 	keys: KeyInfo[];
 }
 
-export interface ResolvedMessageBundle {
+export namespace JavaScriptMessageBundle {
+	export function is(value: any): value is JavaScriptMessageBundle {
+		let candidate = value as JavaScriptMessageBundle;
+		return candidate && isDefined(candidate.messages) && isDefined(candidate.keys);
+	}
+}
+
+export interface ResolvedJavaScriptMessageBundle {
 	messages: string[];
 	keys: string[];
 	map: Map<string>;
 }
 
+export namespace ResolvedJavaScriptMessageBundle {
+	export function is(value: any): value is ResolvedJavaScriptMessageBundle {
+		let candidate = value as ResolvedJavaScriptMessageBundle;
+		return candidate && isDefined(candidate.keys) && isDefined(candidate.messages) && isDefined(candidate.map);
+	}
+	export function asTranslatedMessages(bundle: ResolvedJavaScriptMessageBundle, translatedMessages: Map<string>): string[] {
+		let result: string[] = [];
+		bundle.keys.forEach(key => {
+			let translated = translatedMessages ? translatedMessages[key] : undefined;
+			if (isUndefined(translated)) {
+				translated = bundle.map[key];
+			}
+			result.push(translated);
+		});
+		return result;
+	}
+}
+
+export interface PackageJsonMessageBundle {
+	[key: string]: string;
+}
+
+export namespace PackageJsonMessageBundle {
+	export function asTranslatedMessages(bundle: PackageJsonMessageBundle, translatedMessages: Map<string>): Map<string> {
+		let result: Map<string> = Object.create(null);
+		Object.keys(bundle).forEach((key) => {
+			let message = translatedMessages ? translatedMessages[key] : undefined;
+			if (isUndefined(message)) {
+				message = bundle[key];
+			}
+			result[key] = message;
+		});
+		return result;
+	}
+}
+
 interface AnalysisResult {
 	patches: Patch[];
 	errors: string[];
-	bundle: MessageBundle;
+	bundle: JavaScriptMessageBundle;
 }
 
 interface MappingItem extends SourceMap.MappingItem {
@@ -87,6 +130,14 @@ const toString = Object.prototype.toString;
 
 function isString(value: any): value is string {
 	return toString.call(value) === '[object String]';
+}
+
+function isDefined(value: any): boolean {
+	return typeof value !== 'undefined';
+}
+
+function isUndefined(value: any): boolean {
+	return typeof value === 'undefined';
 }
 
 class TextModel {
@@ -378,6 +429,36 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 		return node && node.kind === ts.SyntaxKind.PropertyAssignment;
 	}
 	
+	const unescapeMap: Map<string> = {
+		'\'': '\'',
+		'"': '"',
+		'\\': '\\',
+		'n': '\n',
+		'r': '\r',
+		't': '\t',
+		'b': '\b',
+		'f': '\f'
+	};
+	
+	function unescapeString(str: string): string {
+		var result: string[] = [];
+		for (let i = 0; i < str.length; i++) {
+			let ch = str.charAt(i);
+			if (ch === '\\') {
+				if (i + 1 < str.length) {
+					let replace = unescapeMap[str.charAt(i + 1)];
+					if (isDefined(replace)) {
+						result.push(replace);
+						i++;
+						continue;
+					}
+				}
+			}
+			result.push(ch);
+		}
+		return result.join('');
+	}
+	
 	options = clone(options, false);
 	options.noResolve = true;
 	options.allowJs = true;
@@ -389,7 +470,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 
 	const patches: Patch[] = [];
 	const errors: string[] = [];
-	const bundle: MessageBundle = { messages: [], keys: [] };
+	const bundle: JavaScriptMessageBundle = { messages: [], keys: [] };
 
 	// all imports
 	const imports = collect(sourceFile, n => isRequireImport(n) ? CollectStepResult.YesAndRecurse : CollectStepResult.NoAndRecurse);
@@ -518,6 +599,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 			errors.push(`(${position.line + 1},${position.character + 1}): second argument of a localize call must be a string literal.`);
 			return memo;
 		}
+		message = unescapeString(message);
 		memo.patches.push({
 			span: { start: ts.getLineAndCharacterOfPosition(sourceFile, firstArg.pos + firstArg.getLeadingTriviaWidth()), end: ts.getLineAndCharacterOfPosition(sourceFile, firstArg.end) },
 			content: messageIndex.toString()
@@ -546,7 +628,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 	};
 }
 
-export function processFile(contents: string, sourceMap?: string | RawSourceMap): { contents: string, sourceMap: string, bundle: MessageBundle, errors: string[] } {
+export function processFile(contents: string, sourceMap?: string | RawSourceMap): { contents: string, sourceMap: string, bundle: JavaScriptMessageBundle, errors: string[] } {
 
 	const analysisResult = analyze(contents);
 	if (analysisResult.patches.length === 0) {
@@ -608,39 +690,39 @@ function stripComments(content: string): string {
 	return result;
 };
 
-export function resolveMessageBundle(bundle: MessageBundle): ResolvedMessageBundle {
-	if (bundle.messages.length !== bundle.keys.length) {
-		return null;
+export function resolveMessageBundle(bundle: JavaScriptMessageBundle): ResolvedJavaScriptMessageBundle;
+export function resolveMessageBundle(bundle: PackageJsonMessageBundle): PackageJsonMessageBundle;
+export function resolveMessageBundle(bundle: JavaScriptMessageBundle | PackageJsonMessageBundle): ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle {
+	if (JavaScriptMessageBundle.is(bundle)) {
+		if (bundle.messages.length !== bundle.keys.length) {
+			return null;
+		}
+		let keys: string[] = [];
+		let map: Map<string> = Object.create(null);
+		bundle.keys.forEach((key, index) => {
+			let resolvedKey = isString(key) ? key : key.key;
+			keys.push(resolvedKey);
+			map[resolvedKey] = bundle.messages[index];
+		});
+		return { messages: bundle.messages, keys: keys, map };		
+	} else {
+		return bundle;
 	}
-	let keys: string[] = [];
-	let map: Map<string> = Object.create(null);
-	bundle.keys.forEach((key, index) => {
-		let resolvedKey = isString(key) ? key : key.key;
-		keys.push(resolvedKey);
-		map[resolvedKey] = bundle.messages[index];
-	});
-	return { messages: bundle.messages, keys: keys, map };
 }
 
-export function createLocalizedMessages(filename: string, bundle: ResolvedMessageBundle, language: string, i18nBaseDir: string, component: string): string[] {
-	let i18nFile = path.join(i18nBaseDir, language, component, filename) + '.i18n.json';
+export function createLocalizedMessages(filename: string, bundle: ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle, language: string, i18nBaseDir: string, component?: string): string[] | Map<String> {
+	let i18nFile = (component 
+		? path.join(i18nBaseDir, language, component, filename)
+		: path.join(i18nBaseDir, language, filename)) + '.i18n.json';
 	let messages: Map<string>;
 	
 	if (fs.existsSync(i18nFile)) {
 		let content = stripComments(fs.readFileSync(i18nFile, 'utf8'));
 		messages = JSON.parse(content);
 	}
-	if (!messages) {
-		return bundle.messages;
+	if (ResolvedJavaScriptMessageBundle.is(bundle)) {
+		return ResolvedJavaScriptMessageBundle.asTranslatedMessages(bundle, messages);
+	} else {
+		return PackageJsonMessageBundle.asTranslatedMessages(bundle, messages);
 	}
-	let result: string[] = [];
-	bundle.keys.forEach(key => {
-		let translated = messages[key];
-		if (isString(translated)) {
-			result.push(translated);
-		} else {
-			result.push(bundle.map[key])
-		}
-	});
-	return result;
 }

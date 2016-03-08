@@ -10,7 +10,7 @@ import { ThroughStream } from 'through';
 import { through } from 'event-stream';
 import File = require('vinyl');
 
-import { KeyInfo, MessageBundle, processFile, resolveMessageBundle, createLocalizedMessages } from './lib';
+import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages } from './lib';
 
 interface FileWithSourceMap extends File {
 	sourceMap: any;
@@ -77,7 +77,7 @@ const iso639_3_to_2 = {
 	'trk': 'tr'
 };
 
-export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, component: string): ThroughStream {
+export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, component?: string): ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.path);
 		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
