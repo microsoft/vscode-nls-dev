@@ -77,6 +77,8 @@ const iso639_3_to_2 = {
 	'trk': 'tr'
 };
 
+export const coreLanguages: string[] = ['chs', 'cht', 'jpn', 'kor', 'deu', 'fra', 'esn', 'rus', 'ita'];
+
 export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, component?: string): ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.path);
