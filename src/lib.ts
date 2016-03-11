@@ -82,6 +82,9 @@ export namespace ResolvedJavaScriptMessageBundle {
 		bundle.keys.forEach(key => {
 			let translated = translatedMessages ? translatedMessages[key] : undefined;
 			if (isUndefined(translated)) {
+				if (translatedMessages) {
+					console.log(`No translation found for key: ${key}`)
+				}
 				translated = bundle.map[key];
 			}
 			result.push(translated);
@@ -100,6 +103,9 @@ export namespace PackageJsonMessageBundle {
 		Object.keys(bundle).forEach((key) => {
 			let message = translatedMessages ? translatedMessages[key] : undefined;
 			if (isUndefined(message)) {
+				if (translatedMessages) {
+					console.log(`No translation found for key: ${key}`)
+				}
 				message = bundle[key];
 			}
 			result[key] = message;
@@ -719,6 +725,8 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 	if (fs.existsSync(i18nFile)) {
 		let content = stripComments(fs.readFileSync(i18nFile, 'utf8'));
 		messages = JSON.parse(content);
+	} else {
+		console.log(`Message file not found: ${i18nFile.substr(i18nBaseDir.length + 1)}. Missing messages: ${ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length}`);
 	}
 	if (ResolvedJavaScriptMessageBundle.is(bundle)) {
 		return ResolvedJavaScriptMessageBundle.asTranslatedMessages(bundle, messages);

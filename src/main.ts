@@ -81,12 +81,12 @@ export const coreLanguages: string[] = ['chs', 'cht', 'jpn', 'kor', 'deu', 'fra'
 
 export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, component?: string): ThroughStream {
 	return through(function(file: File) {
-		let basename = path.basename(file.path);
+		let basename = path.basename(file.relative);
 		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
 			this.emit('data', file);
 			return;
 		}
-		let filename = file.path.substr(0, file.path.length - NLS_JSON.length);
+		let filename = file.relative.substr(0, file.relative.length - NLS_JSON.length);
 		let json;
 		if (file.isBuffer()) {
 			json = JSON.parse(file.contents.toString('utf8'));
@@ -96,7 +96,7 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 				if (messages) {
 					this.emit('data', new File({
 						base: file.base,
-						path: filename + '.nls.' + iso639_3_to_2[language] + '.json',
+						path: path.join(file.base, filename) + '.nls.' + iso639_3_to_2[language] + '.json',
 						contents: new Buffer(JSON.stringify(messages, null, '\t').replace(/\r\n/g, '\n'), 'utf8')
 					}));
 				}
