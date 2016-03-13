@@ -12,6 +12,12 @@ import File = require('vinyl');
 
 import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages } from './lib';
 
+var util = require('gulp-util');
+
+function log(message: any, ...rest: any[]): void {
+	util.log(util.colors.cyan('[i18n]'), message, ...rest);
+}
+
 interface FileWithSourceMap extends File {
 	sourceMap: any;
 }
@@ -79,7 +85,7 @@ const iso639_3_to_2 = {
 
 export const coreLanguages: string[] = ['chs', 'cht', 'jpn', 'kor', 'deu', 'fra', 'esn', 'rus', 'ita'];
 
-export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, component?: string): ThroughStream {
+export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, baseDir?: string): ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
@@ -92,12 +98,15 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 			json = JSON.parse(file.contents.toString('utf8'));
 			let resolvedBundle = resolveMessageBundle(json);
 			languages.forEach((language) => {
-				let messages = createLocalizedMessages(filename, resolvedBundle, language, i18nBaseDir, component);
-				if (messages) {
+				let result = createLocalizedMessages(filename, resolvedBundle, language, i18nBaseDir, baseDir);
+				if (result.problems && result.problems.length > 0) {
+					result.problems.forEach(problem => log(problem));
+				}
+				if (result.messages) {
 					this.emit('data', new File({
 						base: file.base,
 						path: path.join(file.base, filename) + '.nls.' + iso639_3_to_2[language] + '.json',
-						contents: new Buffer(JSON.stringify(messages, null, '\t').replace(/\r\n/g, '\n'), 'utf8')
+						contents: new Buffer(JSON.stringify(result.messages, null, '\t').replace(/\r\n/g, '\n'), 'utf8')
 					}));
 				}
  			});

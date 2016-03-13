@@ -77,13 +77,13 @@ export namespace ResolvedJavaScriptMessageBundle {
 		let candidate = value as ResolvedJavaScriptMessageBundle;
 		return candidate && isDefined(candidate.keys) && isDefined(candidate.messages) && isDefined(candidate.map);
 	}
-	export function asTranslatedMessages(bundle: ResolvedJavaScriptMessageBundle, translatedMessages: Map<string>): string[] {
+	export function asTranslatedMessages(bundle: ResolvedJavaScriptMessageBundle, translatedMessages: Map<string>, problems: string[]): string[] {
 		let result: string[] = [];
 		bundle.keys.forEach(key => {
 			let translated = translatedMessages ? translatedMessages[key] : undefined;
 			if (isUndefined(translated)) {
 				if (translatedMessages) {
-					console.log(`No translation found for key: ${key}`)
+					problems.push(`No localized message found for key ${key}`)
 				}
 				translated = bundle.map[key];
 			}
@@ -98,13 +98,13 @@ export interface PackageJsonMessageBundle {
 }
 
 export namespace PackageJsonMessageBundle {
-	export function asTranslatedMessages(bundle: PackageJsonMessageBundle, translatedMessages: Map<string>): Map<string> {
+	export function asTranslatedMessages(bundle: PackageJsonMessageBundle, translatedMessages: Map<string>, problems: string[]): Map<string> {
 		let result: Map<string> = Object.create(null);
 		Object.keys(bundle).forEach((key) => {
 			let message = translatedMessages ? translatedMessages[key] : undefined;
 			if (isUndefined(message)) {
 				if (translatedMessages) {
-					console.log(`No translation found for key: ${key}`)
+					problems.push(`No localized message found for key ${key}`)
 				}
 				message = bundle[key];
 			}
@@ -716,21 +716,31 @@ export function resolveMessageBundle(bundle: JavaScriptMessageBundle | PackageJs
 	}
 }
 
-export function createLocalizedMessages(filename: string, bundle: ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle, language: string, i18nBaseDir: string, component?: string): string[] | Map<String> {
-	let i18nFile = (component 
-		? path.join(i18nBaseDir, language, component, filename)
+export interface LocalizedMessagesResult {
+	messages: string[] | Map<String>;
+	problems: string[];
+}
+
+export function createLocalizedMessages(filename: string, bundle: ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle, language: string, i18nBaseDir: string, baseDir?: string): LocalizedMessagesResult {
+	let problems: string[] = [];
+	let i18nFile = (baseDir 
+		? path.join(i18nBaseDir, language, baseDir, filename)
 		: path.join(i18nBaseDir, language, filename)) + '.i18n.json';
+		
 	let messages: Map<string>;
-	
 	if (fs.existsSync(i18nFile)) {
 		let content = stripComments(fs.readFileSync(i18nFile, 'utf8'));
 		messages = JSON.parse(content);
+		if (Object.keys(messages).length === 0) {
+			problems.push(`Message file ${i18nFile.substr(i18nBaseDir.length + 1)} is empty. Missing messages: ${ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length}`);
+			messages = undefined;
+		}
 	} else {
-		console.log(`Message file not found: ${i18nFile.substr(i18nBaseDir.length + 1)}. Missing messages: ${ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length}`);
+		problems.push(`Message file ${i18nFile.substr(i18nBaseDir.length + 1)} not found. Missing messages: ${ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length}`);
 	}
 	if (ResolvedJavaScriptMessageBundle.is(bundle)) {
-		return ResolvedJavaScriptMessageBundle.asTranslatedMessages(bundle, messages);
+		return { messages: ResolvedJavaScriptMessageBundle.asTranslatedMessages(bundle, messages, problems), problems };
 	} else {
-		return PackageJsonMessageBundle.asTranslatedMessages(bundle, messages);
+		return { messages: PackageJsonMessageBundle.asTranslatedMessages(bundle, messages, problems), problems };
 	}
 }
