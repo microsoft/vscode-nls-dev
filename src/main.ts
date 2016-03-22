@@ -63,9 +63,9 @@ export function rewriteLocalizeCalls(): ThroughStream {
 }
 
 const iso639_3_to_2 = {
-	'chs': 'zh-CN',
-	'cht': 'zh-TW',
-	'csy': 'cs-CZ',
+	'chs': 'zh-cn',
+	'cht': 'zh-tw',
+	'csy': 'cs-cz',
 	'deu': 'de',
 	'enu': 'en',
 	'esn': 'es',
@@ -76,10 +76,10 @@ const iso639_3_to_2 = {
 	'kor': 'ko',
 	'nld': 'nl',
 	'plk': 'pl',
-	'ptb': 'pt-BR',
+	'ptb': 'pt-br',
 	'ptg': 'pt',
 	'rus': 'ru',
-	'sve': 'sv-SE',
+	'sve': 'sv-se',
 	'trk': 'tr'
 };
 

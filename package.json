@@ -1,6 +1,6 @@
 {
   "name": "vscode-nls-dev",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Development time npm module to generate strings bundles from Javascript files",
   "author": "Microsoft Corporation",
   "license": "MIT",
