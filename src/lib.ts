@@ -52,6 +52,13 @@ export interface LocalizeInfo {
 	comment: string[];
 }
 
+export namespace LocalizeInfo {
+	export function is(value: any): value is JavaScriptMessageBundle {
+		let candidate = value as LocalizeInfo;
+		return candidate && isDefined(candidate.key) && isDefined(candidate.comment);
+	}
+}
+
 export type KeyInfo = string | LocalizeInfo;
 
 export interface JavaScriptMessageBundle {
