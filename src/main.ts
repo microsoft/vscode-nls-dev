@@ -10,7 +10,7 @@ import { ThroughStream } from 'through';
 import { through } from 'event-stream';
 import File = require('vinyl');
 
-import { KeyInfo, LocalizeInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages } from './lib';
+import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages, bundle2kvp } from './lib';
 
 var util = require('gulp-util');
 
@@ -25,7 +25,7 @@ interface FileWithSourceMap extends File {
 const NLS_JSON = '.nls.json';
 const I18N_JSON = '.i18n.json';
 
-export function rewriteLocalizeCalls(kvp: boolean = false): ThroughStream {
+export function rewriteLocalizeCalls(): ThroughStream {
 	return through(
 		function (file: FileWithSourceMap) {
 			if (!file.isBuffer()) {
@@ -36,7 +36,6 @@ export function rewriteLocalizeCalls(kvp: boolean = false): ThroughStream {
 			
 			let result = processFile(content, sourceMap);
 			let bundleFile: File;
-			let locFile: File;
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file.relative}${error}`));
 				this.emit('error', `Failed to rewite file: ${file.relative}`);
@@ -49,68 +48,19 @@ export function rewriteLocalizeCalls(kvp: boolean = false): ThroughStream {
 				}
 				if (result.bundle) {
 					let ext = path.extname(file.path);
-					
-					if(kvp) {
-						let kvpObject = bundle2kvp(result.bundle);
-						locFile = new File({
-							base: file.base,
-							path: file.path.substr(0, file.path.length - ext.length) + I18N_JSON,
-							contents: new Buffer(JSON.stringify(kvpObject, null, '\t'), 'utf8')
-						});
-						bundleFile = new File({
-							base: file.base,
-							path: file.path.substr(0, file.path.length - ext.length) + NLS_JSON,
-							contents: new Buffer(JSON.stringify(result.bundle, null, '\t'), 'utf8')
-						});
-					} else {
-						bundleFile = new File({
-							base: file.base,
-							path: file.path.substr(0, file.path.length - ext.length) + NLS_JSON,
-							contents: new Buffer(JSON.stringify(result.bundle, null, '\t'), 'utf8')
-						});
-					}
+					bundleFile = new File({
+						base: file.base,
+						path: file.path.substr(0, file.path.length - ext.length) + NLS_JSON,
+						contents: new Buffer(JSON.stringify(result.bundle, null, '\t'), 'utf8')
+					});
 				}
 			}
 			this.emit('data', file);
 			if (bundleFile) {
 				this.emit('data', bundleFile);
-				if(kvp) {
-					this.emit('data', locFile);
-				}
 			}
 		}
 	);
-}
-
-function bundle2kvp(bundle: JavaScriptMessageBundle): any{
-	let kvpObject = {};
-	
-	for(var i=0; i < bundle.messages.length; ++i) {
-		let key: string;
-		let comments: string[];
-		let message: string = bundle.messages[i];
-		let isLocalizeInfo: boolean = LocalizeInfo.is(bundle.keys[i]);
-		
-		if (isLocalizeInfo) {
-			key = (<LocalizeInfo>bundle.keys[i]).key;
-			comments = (<LocalizeInfo>bundle.keys[i]).comment;
-		} else {
-			key = <string>bundle.keys[i];
-		}
-		
-		if(key in kvpObject)
-		{
-			throw new Error("The following key is duplicated: \"" + key + "\". Please use unique keys.");
-		}
-		
-		kvpObject[key] = bundle.messages[i];
-		
-		if (isLocalizeInfo) {
-			kvpObject["_"+key+".comment"] = comments.join(' ');
-		}
-	}
-	
-	return kvpObject;
 }
 
 const iso639_3_to_2 = {
@@ -165,5 +115,43 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 			this.emit('error', `Failed to read component file: ${file.relative}`)
 		}
 		this.emit('data', file);
+	});
+}
+
+export function createKeyValuePairFile(): ThroughStream {
+	return through(function(file: File) {
+		let basename = path.basename(file.relative);
+		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
+			this.emit('data', file);
+			return;
+		}
+		let json;
+		let kvpFile;
+		let filename = file.relative.substr(0, file.relative.length - NLS_JSON.length);
+		if (file.isBuffer()) {
+			json = JSON.parse(file.contents.toString('utf8'));
+			if (JavaScriptMessageBundle.is(json)) {
+				let resolvedBundle = json as JavaScriptMessageBundle;
+				if (resolvedBundle.messages.length !== resolvedBundle.keys.length) {
+					this.emit('data', file);
+					return;
+				}
+				let kvpObject = bundle2kvp(resolvedBundle);
+				kvpFile = new File({
+							base: file.base,
+							path: path.join(file.base, filename) + I18N_JSON,
+							contents: new Buffer(JSON.stringify(kvpObject, null, '\t'), 'utf8')
+						});
+			}
+			else {
+				this.emit('error', `Not Valid JSON: ${file.relative}`)
+			}
+		} else {
+			this.emit('error', `Failed to read component file: ${file.relative}`)
+		}
+		this.emit('data', file);
+		if(kvpFile) {
+			this.emit('data', kvpFile);
+		}
 	});
 }
