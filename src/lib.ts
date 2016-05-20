@@ -52,6 +52,13 @@ export interface LocalizeInfo {
 	comment: string[];
 }
 
+export namespace LocalizeInfo {
+	export function is(value: any): value is LocalizeInfo {
+		let candidate = value as LocalizeInfo;
+		return candidate && isDefined(candidate.key) && isDefined(candidate.comment);
+	}
+}
+
 export type KeyInfo = string | LocalizeInfo;
 
 export interface JavaScriptMessageBundle {
@@ -743,4 +750,34 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 	} else {
 		return { messages: PackageJsonMessageBundle.asTranslatedMessages(bundle, messages, problems), problems };
 	}
+}
+
+export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, dropComments: boolean = false): any {
+	let result = Object.create(null);
+	
+	for(var i=0; i < bundle.messages.length; ++i) {
+		let key: string;
+		let comments: string[];
+		let message: string = bundle.messages[i];
+		let keyInfo = bundle.keys[i];
+		
+		if (LocalizeInfo.is(keyInfo)) {
+			key = keyInfo.key;
+			comments = keyInfo.comment;
+		} else {
+			key = keyInfo;
+		}
+		
+		if (key in result) {
+			throw new Error(`The following key is duplicated: "${key}". Please use unique keys.`);
+		}
+		
+		result[key] = bundle.messages[i];
+		
+		if (comments && !dropComments) {
+			result[`_${key}.comments`] = comments;
+		}
+	}
+	
+	return result;
 }

@@ -10,7 +10,7 @@ import { ThroughStream } from 'through';
 import { through } from 'event-stream';
 import File = require('vinyl');
 
-import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages } from './lib';
+import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages, bundle2keyValuePair } from './lib';
 
 var util = require('gulp-util');
 
@@ -23,6 +23,7 @@ interface FileWithSourceMap extends File {
 }
 
 const NLS_JSON = '.nls.json';
+const I18N_JSON = '.i18n.json';
 
 export function rewriteLocalizeCalls(): ThroughStream {
 	return through(
@@ -114,5 +115,42 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 			this.emit('error', `Failed to read component file: ${file.relative}`)
 		}
 		this.emit('data', file);
+	});
+}
+
+export function createKeyValuePairFile(dropComments: boolean = false): ThroughStream {
+	return through(function(file: File) {
+		let basename = path.basename(file.relative);
+		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
+			this.emit('data', file);
+			return;
+		}
+		let json;
+		let kvpFile;
+		let filename = file.relative.substr(0, file.relative.length - NLS_JSON.length);
+		if (file.isBuffer()) {
+			json = JSON.parse(file.contents.toString('utf8'));
+			if (JavaScriptMessageBundle.is(json)) {
+				let resolvedBundle = json as JavaScriptMessageBundle;
+				if (resolvedBundle.messages.length !== resolvedBundle.keys.length) {
+					this.emit('data', file);
+					return;
+				}
+				let kvpObject = bundle2keyValuePair(resolvedBundle, dropComments);
+				kvpFile = new File({
+					base: file.base,
+					path: path.join(file.base, filename) + I18N_JSON,
+					contents: new Buffer(JSON.stringify(kvpObject, null, '\t'), 'utf8')
+				});
+			} else {
+				this.emit('error', `Not a valid JavaScript message bundle: ${file.relative}`)
+			}
+		} else {
+			this.emit('error', `Failed to read JavaScript message bundle file: ${file.relative}`)
+		}
+		this.emit('data', file);
+		if (kvpFile) {
+			this.emit('data', kvpFile);
+		}
 	});
 }
