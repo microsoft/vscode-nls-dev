@@ -10,7 +10,7 @@ import { ThroughStream } from 'through';
 import { through } from 'event-stream';
 import File = require('vinyl');
 
-import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages, bundle2kvp } from './lib';
+import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages, bundle2keyValuePair } from './lib';
 
 var util = require('gulp-util');
 
@@ -118,7 +118,7 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 	});
 }
 
-export function createKeyValuePairFile(): ThroughStream {
+export function createKeyValuePairFile(dropComments: boolean = false): ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
@@ -136,21 +136,20 @@ export function createKeyValuePairFile(): ThroughStream {
 					this.emit('data', file);
 					return;
 				}
-				let kvpObject = bundle2kvp(resolvedBundle);
+				let kvpObject = bundle2keyValuePair(resolvedBundle, dropComments);
 				kvpFile = new File({
-							base: file.base,
-							path: path.join(file.base, filename) + I18N_JSON,
-							contents: new Buffer(JSON.stringify(kvpObject, null, '\t'), 'utf8')
-						});
-			}
-			else {
-				this.emit('error', `Not Valid JSON: ${file.relative}`)
+					base: file.base,
+					path: path.join(file.base, filename) + I18N_JSON,
+					contents: new Buffer(JSON.stringify(kvpObject, null, '\t'), 'utf8')
+				});
+			} else {
+				this.emit('error', `Not a valid JavaScript message bundle: ${file.relative}`)
 			}
 		} else {
-			this.emit('error', `Failed to read component file: ${file.relative}`)
+			this.emit('error', `Failed to read JavaScript message bundle file: ${file.relative}`)
 		}
 		this.emit('data', file);
-		if(kvpFile) {
+		if (kvpFile) {
 			this.emit('data', kvpFile);
 		}
 	});

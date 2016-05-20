@@ -53,7 +53,7 @@ export interface LocalizeInfo {
 }
 
 export namespace LocalizeInfo {
-	export function is(value: any): value is JavaScriptMessageBundle {
+	export function is(value: any): value is LocalizeInfo {
 		let candidate = value as LocalizeInfo;
 		return candidate && isDefined(candidate.key) && isDefined(candidate.comment);
 	}
@@ -752,33 +752,32 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 	}
 }
 
-export function bundle2kvp(bundle: JavaScriptMessageBundle): any{
-	let kvpObject = {};
+export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, dropComments: boolean = false): any {
+	let result = Object.create(null);
 	
 	for(var i=0; i < bundle.messages.length; ++i) {
 		let key: string;
 		let comments: string[];
 		let message: string = bundle.messages[i];
-		let isLocalizeInfo: boolean = LocalizeInfo.is(bundle.keys[i]);
+		let keyInfo = bundle.keys[i];
 		
-		if (isLocalizeInfo) {
-			key = (<LocalizeInfo>bundle.keys[i]).key;
-			comments = (<LocalizeInfo>bundle.keys[i]).comment;
+		if (LocalizeInfo.is(keyInfo)) {
+			key = keyInfo.key;
+			comments = keyInfo.comment;
 		} else {
-			key = <string>bundle.keys[i];
+			key = keyInfo;
 		}
 		
-		if(key in kvpObject)
-		{
-			throw new Error("The following key is duplicated: \"" + key + "\". Please use unique keys.");
+		if (key in result) {
+			throw new Error(`The following key is duplicated: "${key}". Please use unique keys.`);
 		}
 		
-		kvpObject[key] = bundle.messages[i];
+		result[key] = bundle.messages[i];
 		
-		if (isLocalizeInfo) {
-			kvpObject["_"+key+".comment"] = comments.join(' ');
+		if (comments && !dropComments) {
+			result[`_${key}.comments`] = comments;
 		}
 	}
 	
-	return kvpObject;
+	return result;
 }
