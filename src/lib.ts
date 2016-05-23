@@ -752,7 +752,7 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 	}
 }
 
-export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, dropComments: boolean = false): any {
+export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, commentSeparator: string = undefined): any {
 	let result = Object.create(null);
 	
 	for(var i=0; i < bundle.messages.length; ++i) {
@@ -774,8 +774,12 @@ export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, dropComment
 		
 		result[key] = bundle.messages[i];
 		
-		if (comments && !dropComments) {
-			result[`_${key}.comments`] = comments;
+		if (comments) {
+			if (commentSeparator) {
+				result[`_${key}.comments`] = comments.join(commentSeparator);
+			} else {
+				result[`_${key}.comments`] = comments;
+			}
 		}
 	}
 	

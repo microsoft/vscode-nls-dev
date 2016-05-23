@@ -118,7 +118,13 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 	});
 }
 
-export function createKeyValuePairFile(dropComments: boolean = false): ThroughStream {
+/**
+ * A stream the creates additional key/value pair files for structured nls files.
+ * 
+ * @param commentSeparator - if provided comments will be joined into one string using 
+ *  the commentSeparator value. If omitted comments will be includes as a string array.
+ */
+export function createKeyValuePairFile(commentSeparator: string = undefined): ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
@@ -136,7 +142,7 @@ export function createKeyValuePairFile(dropComments: boolean = false): ThroughSt
 					this.emit('data', file);
 					return;
 				}
-				let kvpObject = bundle2keyValuePair(resolvedBundle, dropComments);
+				let kvpObject = bundle2keyValuePair(resolvedBundle, commentSeparator);
 				kvpFile = new File({
 					base: file.base,
 					path: path.join(file.base, filename) + I18N_JSON,
