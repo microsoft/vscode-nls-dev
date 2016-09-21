@@ -479,7 +479,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 	const filename = 'file.js';
 	const serviceHost = new SingleFileServiceHost(options, filename, contents);
 	const service = ts.createLanguageService(serviceHost);
-	const sourceFile = service.getSourceFile(filename);
+	const sourceFile = service.getProgram().getSourceFile(filename);
 
 	const patches: Patch[] = [];
 	const errors: string[] = [];

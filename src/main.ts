@@ -31,7 +31,8 @@ export function rewriteLocalizeCalls(): ThroughStream {
 			if (!file.isBuffer()) {
 				this.emit('error', `Failed to read file: ${file.relative}`);
 			}
-			let content = file.contents.toString('utf8');
+			let buffer: Buffer = file.contents as Buffer;
+			let content = buffer.toString('utf8');
 			let sourceMap = file.sourceMap;
 			
 			let result = processFile(content, sourceMap);
@@ -96,7 +97,8 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 		let filename = file.relative.substr(0, file.relative.length - NLS_JSON.length);
 		let json;
 		if (file.isBuffer()) {
-			json = JSON.parse(file.contents.toString('utf8'));
+			let buffer: Buffer = file.contents as Buffer;
+			json = JSON.parse(buffer.toString('utf8'));
 			let resolvedBundle = resolveMessageBundle(json);
 			languages.forEach((language) => {
 				let result = createLocalizedMessages(filename, resolvedBundle, language, i18nBaseDir, baseDir);
@@ -135,7 +137,8 @@ export function createKeyValuePairFile(commentSeparator: string = undefined): Th
 		let kvpFile;
 		let filename = file.relative.substr(0, file.relative.length - NLS_JSON.length);
 		if (file.isBuffer()) {
-			json = JSON.parse(file.contents.toString('utf8'));
+			let buffer: Buffer = file.contents as Buffer;
+			json = JSON.parse(buffer.toString('utf8'));
 			if (JavaScriptMessageBundle.is(json)) {
 				let resolvedBundle = json as JavaScriptMessageBundle;
 				if (resolvedBundle.messages.length !== resolvedBundle.keys.length) {
