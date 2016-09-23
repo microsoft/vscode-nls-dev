@@ -10,4 +10,4 @@ language servers written in TS and JS.
   break existing clients using TypeScript 1.8.x.
 
 ## LICENSE
-[MIT](LICENSE)
+[MIT](License.txt)
