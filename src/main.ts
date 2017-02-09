@@ -87,7 +87,7 @@ const iso639_3_to_2 = {
 
 export const coreLanguages: string[] = ['chs', 'cht', 'jpn', 'kor', 'deu', 'fra', 'esn', 'rus', 'ita'];
 
-export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, baseDir?: string): ThroughStream {
+export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, baseDir?: string, logProblems: boolean = true): ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
@@ -102,7 +102,7 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 			let resolvedBundle = resolveMessageBundle(json);
 			languages.forEach((language) => {
 				let result = createLocalizedMessages(filename, resolvedBundle, language, i18nBaseDir, baseDir);
-				if (result.problems && result.problems.length > 0) {
+				if (result.problems && result.problems.length > 0 && logProblems) {
 					result.problems.forEach(problem => log(problem));
 				}
 				if (result.messages) {
