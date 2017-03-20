@@ -17,7 +17,16 @@
     "vscl": "./lib/vscl.js"
   },
   "devDependencies": {
-    "mocha": "^2.3.2"
+    "mocha": "^2.3.2",
+    "@types/node": "^7.0.8",
+    "@types/glob": "^5.0.30",
+    "@types/minimatch": "^2.0.29",
+    "@types/mocha": "^2.2.40",
+    "@types/source-map": "^0.5.0",
+    "@types/through": "^0.0.28",
+    "@types/vinyl": "^2.0.0",
+    "@types/yargs": "^6.6.0",
+    "@types/clone": "^0.1.30"
   },
   "dependencies": {
     "clone": "^1.0.2",

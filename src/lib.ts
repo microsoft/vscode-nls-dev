@@ -8,11 +8,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import * as ts from 'typescript';
-import { RawSourceMap, SourceMapConsumer, SourceMapGenerator } from 'source-map';
+import { RawSourceMap, SourceMapConsumer, SourceMapGenerator, MappingItem as BaseMappingItem } from 'source-map';
 
 import clone = require('clone');
-import { ThroughStream } from 'through';
-import { through } from 'event-stream';
 
 export interface Map<V> {
 	[key: string]: V;
@@ -127,7 +125,7 @@ interface AnalysisResult {
 	bundle: JavaScriptMessageBundle;
 }
 
-interface MappingItem extends SourceMap.MappingItem {
+interface MappingItem extends BaseMappingItem {
 	delete?: boolean;
 	columnDelta?: number;
 	lineDelta?: number;

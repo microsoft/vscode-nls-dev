@@ -6,8 +6,8 @@
 
 import * as path from 'path';
 
-import { ThroughStream } from 'through';
-import { through } from 'event-stream';
+import * as through from 'through';
+
 import File = require('vinyl');
 
 import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages, bundle2keyValuePair } from './lib';
@@ -25,7 +25,7 @@ interface FileWithSourceMap extends File {
 const NLS_JSON = '.nls.json';
 const I18N_JSON = '.i18n.json';
 
-export function rewriteLocalizeCalls(): ThroughStream {
+export function rewriteLocalizeCalls(): through.ThroughStream {
 	return through(
 		function (file: FileWithSourceMap) {
 			if (!file.isBuffer()) {
@@ -87,7 +87,7 @@ const iso639_3_to_2 = {
 
 export const coreLanguages: string[] = ['chs', 'cht', 'jpn', 'kor', 'deu', 'fra', 'esn', 'rus', 'ita'];
 
-export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, baseDir?: string): ThroughStream {
+export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, baseDir?: string): through.ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
@@ -126,7 +126,7 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
  * @param commentSeparator - if provided comments will be joined into one string using 
  *  the commentSeparator value. If omitted comments will be includes as a string array.
  */
-export function createKeyValuePairFile(commentSeparator: string = undefined): ThroughStream {
+export function createKeyValuePairFile(commentSeparator: string = undefined): through.ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
