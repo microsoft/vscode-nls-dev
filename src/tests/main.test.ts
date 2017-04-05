@@ -28,27 +28,4 @@ describe('XLF Parser Tests', () => {
 			assert.strictEqual(resolvedFiles[0].originalFilePath, originalFilePath);
 		});
 	});
-
-	it('JSON file source path to Transifex resource match', () => {
-		const editorProject: string = 'vscode-editor',
-			workbenchProject: string = 'vscode-workbench';
-
-		const platform: i18n.Resource = { name: 'vs/platform', project: editorProject },
-			editorContrib = { name: 'vs/editor/contrib', project: editorProject },
-			editor = { name: 'vs/editor', project: editorProject },
-			base = { name: 'vs/base', project: editorProject },
-			code = { name: 'vs/code', project: workbenchProject },
-			workbenchParts = { name: 'vs/workbench/parts/html', project: workbenchProject },
-			workbenchServices = { name: 'vs/workbench/services/files', project: workbenchProject },
-			workbench = { name: 'vs/workbench', project: workbenchProject};
-
-		assert.deepEqual(i18n.getResource('vs/platform/actions/browser/menusExtensionPoint'), platform);
-		assert.deepEqual(i18n.getResource('vs/editor/contrib/clipboard/browser/clipboard'), editorContrib);
-		assert.deepEqual(i18n.getResource('vs/editor/common/modes/modesRegistry'), editor);
-		assert.deepEqual(i18n.getResource('vs/base/common/errorMessage'), base);
-		assert.deepEqual(i18n.getResource('vs/code/electron-main/window'), code);
-		assert.deepEqual(i18n.getResource('vs/workbench/parts/html/browser/webview'), workbenchParts);
-		assert.deepEqual(i18n.getResource('vs/workbench/services/files/node/fileService'), workbenchServices);
-		assert.deepEqual(i18n.getResource('vs/workbench/browser/parts/panel/panelActions'), workbench);
-	});
 });
