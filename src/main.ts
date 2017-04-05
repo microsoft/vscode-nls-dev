@@ -602,7 +602,7 @@ function updateResource(project: string, slug: string, xlfFile: File, apiHostnam
 	});
 }
 
-export function pullXlfFiles(projectName: string, apiHostname: string, username: string, password: string, resources: Resource[]): NodeJS.ReadableStream {
+export function pullXlfFiles(apiHostname: string, username: string, password: string, resources: Resource[]): NodeJS.ReadableStream {
 	if (!resources) {
 		throw new Error('Transifex projects and resources must be defined to be able to pull translations from Transifex.');
 	}
