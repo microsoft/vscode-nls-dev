@@ -68,7 +68,7 @@ export function rewriteLocalizeCalls(): through.ThroughStream {
 	);
 }
 
-const iso639_3_to_2 = {
+const iso639_3_to_2: Map<string> = {
 	'chs': 'zh-cn',
 	'cht': 'zh-tw',
 	'csy': 'cs-cz',
@@ -248,23 +248,23 @@ export interface Resource {
 }
 
 export class XLF {
-    private buffer: string[];
+	private buffer: string[];
 	private files: Map<Item[]>;
 
-    constructor(public project: string) {
-        this.buffer = [];
+	constructor(public project: string) {
+		this.buffer = [];
 		this.files = Object.create(null);
 	}
 
-    public toString(): string {
-        this.appendHeader();
+	public toString(): string {
+		this.appendHeader();
 
 		for (let file in this.files) {
 			this.appendNewLine(`<file original="${file}" source-language="en" datatype="plaintext"><body>`, 2);
 			for (let item of this.files[file]) {
 				this.addStringItem(item);
 			}
-       		this.appendNewLine('</body></file>', 2);
+	   		this.appendNewLine('</body></file>', 2);
 		}
 
 		this.appendFooter();
@@ -298,35 +298,35 @@ export class XLF {
 		}
 	}
 
-    private addStringItem(item: Item): void {
-        if (!item.id || !item.message) {
-            throw new Error('No item ID or value specified.');
-        }
+	private addStringItem(item: Item): void {
+		if (!item.id || !item.message) {
+			throw new Error('No item ID or value specified.');
+		}
 
-        this.appendNewLine(`<trans-unit id="${item.id}">`, 4);
-        this.appendNewLine(`<source xml:lang="en">${item.message}</source>`, 6);
+		this.appendNewLine(`<trans-unit id="${item.id}">`, 4);
+		this.appendNewLine(`<source xml:lang="en">${item.message}</source>`, 6);
 
-        if (item.comment) {
-            this.appendNewLine(`<note>${item.comment}</note>`, 6);
-        }
+		if (item.comment) {
+			this.appendNewLine(`<note>${item.comment}</note>`, 6);
+		}
 
-        this.appendNewLine('</trans-unit>', 4);
+		this.appendNewLine('</trans-unit>', 4);
 	}
 
-    private appendHeader(): void {
-        this.appendNewLine('<?xml version="1.0" encoding="utf-8"?>', 0);
-        this.appendNewLine('<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">', 0);
+	private appendHeader(): void {
+		this.appendNewLine('<?xml version="1.0" encoding="utf-8"?>', 0);
+		this.appendNewLine('<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">', 0);
 	}
 
-    private appendFooter(): void {
-        this.appendNewLine('</xliff>', 0);
-    }
+	private appendFooter(): void {
+		this.appendNewLine('</xliff>', 0);
+	}
 
-    private appendNewLine(content: string, indent?: number): void {
-        let line = new Line(indent);
-        line.append(content);
-        this.buffer.push(line.toString());
-    }
+	private appendNewLine(content: string, indent?: number): void {
+		let line = new Line(indent);
+		line.append(content);
+		this.buffer.push(line.toString());
+	}
 
 	static parse = function(xlfString: string) : Promise<{ messages: Map<string>,  originalFilePath: string, language: string }[]> {
 		return new Promise((resolve, reject) => {
@@ -381,8 +381,8 @@ export class XLF {
 }
 
 const iso639_2_to_3: Map<string> = {
-	'zh-hans': 'chs',
-	'zh-hant': 'cht',
+	'zh-cn': 'chs',
+	'zh-tw': 'cht',
 	'cs-cz': 'csy',
 	'de': 'deu',
 	'en': 'enu',
