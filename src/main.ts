@@ -68,6 +68,11 @@ export function rewriteLocalizeCalls(): through.ThroughStream {
 	);
 }
 
+/**
+ * This map is used to map our 3 letter encoding in the
+ * i18n folder to a file extension matching what is returned
+ * from app.getOSLocale().
+ */
 const iso639_3_to_2: Map<string> = {
 	'chs': 'zh-cn',
 	'cht': 'zh-tw',
@@ -380,9 +385,15 @@ export class XLF {
 	};
 }
 
+/**
+ * This map is used to map the language of a Transifex Xlf file
+ * to the folder representation in VS Code i18n folder.
+ */
 const iso639_2_to_3: Map<string> = {
 	'zh-cn': 'chs',
 	'zh-tw': 'cht',
+	'zh-hans': 'chs',
+	'zh-hant': 'cht',
 	'cs-cz': 'csy',
 	'de': 'deu',
 	'en': 'enu',
