@@ -380,21 +380,9 @@ export class XLF {
 	};
 }
 
-const vscodeLanguages: string[] = [
-	'chs',
-	'cht',
-	'jpn',
-	'kor',
-	'deu',
-	'fra',
-	'esn',
-	'rus',
-	'ita'
-];
-
 const iso639_2_to_3: Map<string> = {
-	'zh-cn': 'chs',
-	'zh-tw': 'cht',
+	'zh-hans': 'chs',
+	'zh-hant': 'cht',
 	'cs-cz': 'csy',
 	'de': 'deu',
 	'en': 'enu',
@@ -602,13 +590,13 @@ function updateResource(project: string, slug: string, xlfFile: File, apiHostnam
 	});
 }
 
-export function pullXlfFiles(apiHostname: string, username: string, password: string, resources: Resource[]): NodeJS.ReadableStream {
+export function pullXlfFiles(apiHostname: string, username: string, password: string, languages: string[], resources: Resource[]): NodeJS.ReadableStream {
 	if (!resources) {
 		throw new Error('Transifex projects and resources must be defined to be able to pull translations from Transifex.');
 	}
 
 	const credentials = `${username}:${password}`;
-	let expectedTranslationsCount = vscodeLanguages.length * resources.length;
+	let expectedTranslationsCount = languages.length * resources.length;
 	let translationsRetrieved = 0, called = false;
 
 	return readable(function(count, callback) {
@@ -621,39 +609,46 @@ export function pullXlfFiles(apiHostname: string, username: string, password: st
 			called = true;
 			const stream = this;
 
-			vscodeLanguages.map(function(language) {
+			languages.map(function(language) {
 				resources.map(function(resource) {
-					const slug = resource.name.replace(/\//g, '_');
-					const project = resource.project;
-					const iso639 = iso639_3_to_2[language];
-					const options = {
-						hostname: apiHostname,
-						path: `/api/2/project/${project}/resource/${slug}/translation/${iso639}?file&mode=onlyreviewed`,
-						auth: credentials,
-						method: 'GET'
-					};
-
-					let request = http.request(options, (res) => {
-							let xlfBuffer: string = '';
-							res.on('data', (data) => xlfBuffer += data);
-							res.on('end', () => {
-								if (res.statusCode === 200) {
-									stream.emit('data', new File({ contents: new Buffer(xlfBuffer), path: `${project}/${language}/${slug}.xlf` }));
-								} else {
-									throw new Error(`${slug} in ${project} returned no data. Response code: ${res.statusCode}.`);
-								}
-								translationsRetrieved++;
-							});
-					});
-					request.on('error', (err) => {
-						throw new Error(`Failed to query resource ${slug} with the following error: ${err}`);
-					});
-					request.end();
+					retrieveResource(language, resource, apiHostname, credentials).then((file: File) => {
+						stream.emit('data', file);
+						translationsRetrieved++;
+					}).catch(error => { throw new Error(error); });
 				});
 			});
 		}
 
 		callback();
+	});
+}
+
+function retrieveResource(language: string, resource: Resource, apiHostname, credentials): Promise<File> {
+	return new Promise<File>((resolve, reject) => {
+		const slug = resource.name.replace(/\//g, '_');
+		const project = resource.project;
+		const iso639 = iso639_3_to_2[language];
+		const options = {
+			hostname: apiHostname,
+			path: `/api/2/project/${project}/resource/${slug}/translation/${iso639}?file&mode=onlyreviewed`,
+			auth: credentials,
+			method: 'GET'
+		};
+
+		let request = http.request(options, (res) => {
+				let xlfBuffer: string = '';
+				res.on('data', (data) => xlfBuffer += data);
+				res.on('end', () => {
+					if (res.statusCode === 200) {
+						resolve(new File({ contents: new Buffer(xlfBuffer), path: `${project}/${language}/${slug}.xlf` }));
+					}
+					reject(`${slug} in ${project} returned no data. Response code: ${res.statusCode}.`);
+				});
+		});
+		request.on('error', (err) => {
+			reject(`Failed to query resource ${slug} with the following error: ${err}`);
+		});
+		request.end();
 	});
 }
 

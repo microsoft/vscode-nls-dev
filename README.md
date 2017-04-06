@@ -15,7 +15,7 @@ To perform unlocalized JSON to XLIFF conversion it is required to call `prepareX
 To convert translated XLIFF to localized JSON files `prepareJsonFiles()` should be called, piping `.xlf` files to it. It will parse translated XLIFF to JSON files, reconstructed under original file paths.
 
 ### Transifex Push and Pull
-Updating Transifex with latest unlocalized strings is done via `pushXlfFiles('www.transifex.com', apiName, apiToken)` and `pullXlfFiles('www.transifex.com', apiName, apiToken, resources)` for pulling localizations respectively. When pulling, you have to provide `resources` array with object literals that have `name` and `project` properties. `name` corresponds to the resource name in Transifex and `project` is a project name of your Transifex project where this resource is stored.
+Updating Transifex with latest unlocalized strings is done via `pushXlfFiles('www.transifex.com', apiName, apiToken)` and `pullXlfFiles('www.transifex.com', apiName, apiToken, languages, resources)` for pulling localizations respectively. When pulling, you have to provide `resources` array with object literals that have `name` and `project` properties. `name` corresponds to the resource name in Transifex and `project` is a project name of your Transifex project where this resource is stored. `languages` argument is an array of strings of culture names to be pulled from Transifex.
 
 ## LICENSE
 [MIT](LICENSE)
