@@ -2,7 +2,7 @@ language: node_js
 sudo: false
 
 node_js:
-  - "4.1"
+  - "6.6.0"
 
 install:
   - npm install
