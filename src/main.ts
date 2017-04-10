@@ -638,7 +638,7 @@ function retrieveResource(language: string, resource: Resource, apiHostname, cre
 	return new Promise<File>((resolve, reject) => {
 		const slug = resource.name.replace(/\//g, '_');
 		const project = resource.project;
-		const iso639 = iso639_3_to_2[language];
+		const iso639 = language.toLowerCase();
 		const options = {
 			hostname: apiHostname,
 			path: `/api/2/project/${project}/resource/${slug}/translation/${iso639}?file&mode=onlyreviewed`,
@@ -651,7 +651,7 @@ function retrieveResource(language: string, resource: Resource, apiHostname, cre
 				res.on('data', (data) => xlfBuffer += data);
 				res.on('end', () => {
 					if (res.statusCode === 200) {
-						resolve(new File({ contents: new Buffer(xlfBuffer), path: `${project}/${language}/${slug}.xlf` }));
+						resolve(new File({ contents: new Buffer(xlfBuffer), path: `${project}/${iso639_2_to_3[language]}/${slug}.xlf` }));
 					}
 					reject(`${slug} in ${project} returned no data. Response code: ${res.statusCode}.`);
 				});
