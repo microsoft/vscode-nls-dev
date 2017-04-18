@@ -252,6 +252,12 @@ export interface Resource {
 	project: string;
 }
 
+export interface ParsedXLF {
+	messages: Map<string>;
+	originalFilePath: string;
+	language: string;
+}
+
 export class XLF {
 	private buffer: string[];
 	private files: Map<Item[]>;
@@ -333,7 +339,7 @@ export class XLF {
 		this.buffer.push(line.toString());
 	}
 
-	static parse = function(xlfString: string) : Promise<{ messages: Map<string>,  originalFilePath: string, language: string }[]> {
+	static parse = function(xlfString: string) : Promise<ParsedXLF[]> {
 		return new Promise((resolve, reject) => {
 			let parser = new xml2js.Parser();
 
@@ -647,11 +653,11 @@ function retrieveResource(language: string, resource: Resource, apiHostname, cre
 		};
 
 		let request = http.request(options, (res) => {
-				let xlfBuffer: string = '';
-				res.on('data', (data) => xlfBuffer += data);
+				let xlfBuffer: Buffer[] = [];
+				res.on('data', (chunk) => xlfBuffer.push(<Buffer>chunk));
 				res.on('end', () => {
 					if (res.statusCode === 200) {
-						resolve(new File({ contents: new Buffer(xlfBuffer), path: `${project}/${iso639_2_to_3[language]}/${slug}.xlf` }));
+						resolve(new File({ contents: Buffer.concat(xlfBuffer), path: `${project}/${iso639_2_to_3[language]}/${slug}.xlf` }));
 					}
 					reject(`${slug} in ${project} returned no data. Response code: ${res.statusCode}.`);
 				});
@@ -664,10 +670,14 @@ function retrieveResource(language: string, resource: Resource, apiHostname, cre
 }
 
 export function prepareJsonFiles(): ThroughStream {
+	let parsePromises: Promise<ParsedXLF[]>[] = [];
+
 	return through(function(xlf: File) {
 		let stream = this;
+		let parsePromise = XLF.parse(xlf.contents.toString());
+		parsePromises.push(parsePromise);
 
-		XLF.parse(xlf.contents.toString()).then(
+		parsePromise.then(
 			function(resolvedFiles) {
 				resolvedFiles.forEach(file => {
 					let messages = file.messages, translatedFile;
@@ -679,10 +689,14 @@ export function prepareJsonFiles(): ThroughStream {
 				throw new Error(`XLF parsing error: ${rejectReason}`);
 			}
 		);
+	}, function() {
+		Promise.all(parsePromises)
+			.then(() => { this.emit('end'); })
+			.catch(reason => { throw new Error(reason); })
 	});
 }
 
-export function createI18nFile(base: string, originalFilePath: string, messages: Map<string>): File {
+function createI18nFile(base: string, originalFilePath: string, messages: Map<string>): File {
 	let content = [
 		'/*---------------------------------------------------------------------------------------------',
 		' *  Copyright (c) Microsoft Corporation. All rights reserved.',
@@ -718,6 +732,6 @@ function encodeEntities(value: string): string {
 	return result.join('');
 }
 
-export function decodeEntities(value:string): string {
+function decodeEntities(value:string): string {
 	return value.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }
