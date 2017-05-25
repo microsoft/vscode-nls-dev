@@ -11,6 +11,7 @@
 		"inlineSources": false,
 		"declaration": true,
 		"stripInternal": true,
-		"outDir": "../lib"
+		"outDir": "../lib",
+		"newLine": "LF"
 	}
 }
