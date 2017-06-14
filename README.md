@@ -19,5 +19,49 @@ To convert translated XLIFF to localized JSON files `prepareJsonFiles()` should 
 ### Transifex Push and Pull
 Updating Transifex with latest unlocalized strings is done via `pushXlfFiles('www.transifex.com', apiName, apiToken)` and `pullXlfFiles('www.transifex.com', apiName, apiToken, languages, resources)` for pulling localizations respectively. When pulling, you have to provide `resources` array with object literals that have `name` and `project` properties. `name` corresponds to the resource name in Transifex and `project` is a project name of your Transifex project where this resource is stored. `languages` argument is an array of strings of culture names to be pulled from Transifex.
 
+
+### Onboarding Extension to Transifex
+Here is a sample code that adds localization using Transifex. You can copy and use it as a template for your own extension, changing the values to the ones described in the code comments. 
+
+```javascript
+var nls = require('vscode-nls-dev');
+const vscodeLanguages = [
+	'zh-hans',
+	'zh-hant',
+	'ja',
+	'ko',
+	'de',
+	'fr',
+	'es',
+	'ru',
+	'it'
+]; // languages an extension has to be translated to
+
+const transifexApiHostname = 'www.transifex.com';
+const transifexApiName = 'api';
+const transifexApiToken = process.env.TRANSIFEX_API_TOKEN; // token to talk to Transifex (to obtain it see https://docs.transifex.com/api/introduction#authentication)
+const transifexProjectName = 'vscode-extensions'; // your project name in Transifex
+const transifexExtensionName = 'vscode-node-debug'; // your resource name in Transifex
+
+gulp.task('transifex-push', function() {
+	return gulp.src('**/*.nls.json')
+		.pipe(nls.prepareXlfFiles(transifexProjectName, transifexExtensionName))
+		.pipe(nls.pushXlfFiles(transifexApiHostname, transifexApiName, transifexApiToken));
+});
+
+gulp.task('transifex-pull', function() {
+	return nls.pullXlfFiles(transifexApiHostname, transifexApiName, transifexApiToken, vscodeLanguages, [{ name: transifexExtensionName, project: transifexProjectName }])
+		.pipe(gulp.dest(`../${transifexExtensionName}-localization`));
+});
+
+gulp.task('i18n-import', function() {
+	return gulp.src(`../${transifexExtensionName}-localization/**/*.xlf`)
+		.pipe(nls.prepareJsonFiles())
+		.pipe(gulp.dest('./i18n'));
+});
+```
+
+To push strings for translation to Transifex you call `gulp transifex-push`. To pull and perform the import of latest translations from Transifex to your extension, you need to call `transifex-pull` and `i18n-import` sequentially. This will pull XLF files from Transifex in first gulp task, and import them to i18n folder in JSON format.
+
 ## LICENSE
 [MIT](License.txt)
