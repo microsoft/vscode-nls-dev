@@ -13,7 +13,7 @@ import { ThroughStream } from 'through';
 import * as Is from 'is';
 import * as xml2js from 'xml2js';
 import * as glob from 'glob';
-import * as http from 'http';
+import * as https from 'https';
 
 var util = require('gulp-util');
 var iconv  = require('iconv-lite');
@@ -455,10 +455,11 @@ function importModuleOrPackageJson(file: File, json: ModuleJsonFormat | PackageJ
 
 	let extension = extensions[extensionName] ?
 		extensions[extensionName] : extensions[extensionName] = { xlf: new XLF(projectName), processed: 0 };
-
-	if (ModuleJsonFormat.is(json)) {
-		extension.xlf.addFile(originalFilePath, json['keys'], json['messages']);
-	} else {
+	
+	// .nls.json can come with empty array of keys and messages, check for it
+	if (ModuleJsonFormat.is(json) && json.keys.length !== 0) {
+		extension.xlf.addFile(originalFilePath, json.keys, json.messages);
+	} else if (PackageJsonFormat.is(json) && Object.keys(json).length !== 0) {
 		extension.xlf.addFile(originalFilePath, Object.keys(json), messages);
 	}
 
@@ -511,7 +512,7 @@ function tryGetResource(project: string, slug: string, apiHostname: string, cred
 			method: 'GET'
 		};
 
-		const request = http.request(options, (response) => {
+		const request = https.request(options, (response) => {
 			if (response.statusCode === 404) {
 				resolve(false);
 			} else if (response.statusCode === 200) {
@@ -547,7 +548,7 @@ function createResource(project: string, slug: string, xlfFile: File, apiHostnam
 			method: 'POST'
 		};
 
-		let request = http.request(options, (res) => {
+		let request = https.request(options, (res) => {
 			if (res.statusCode === 201) {
 				log(`Resource ${project}/${slug} successfully created on Transifex.`);
 			} else {
@@ -581,7 +582,7 @@ function updateResource(project: string, slug: string, xlfFile: File, apiHostnam
 			method: 'PUT'
 		};
 
-		let request = http.request(options, (res) => {
+		let request = https.request(options, (res) => {
 			if (res.statusCode === 200) {
 				res.setEncoding('utf8');
 
@@ -652,7 +653,7 @@ function retrieveResource(language: string, resource: Resource, apiHostname, cre
 			method: 'GET'
 		};
 
-		let request = http.request(options, (res) => {
+		let request = https.request(options, (res) => {
 				let xlfBuffer: Buffer[] = [];
 				res.on('data', (chunk) => xlfBuffer.push(<Buffer>chunk));
 				res.on('end', () => {
