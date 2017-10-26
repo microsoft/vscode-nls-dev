@@ -743,11 +743,19 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 	} else {
 		problems.push(`Message file ${i18nFile.substr(i18nBaseDir.length + 1)} not found. Missing messages: ${ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length}`);
 	}
+
+	let translatedMessages: string[] | Map<string>;
+
 	if (ResolvedJavaScriptMessageBundle.is(bundle)) {
-		return { messages: ResolvedJavaScriptMessageBundle.asTranslatedMessages(bundle, messages, problems), problems };
+		translatedMessages = ResolvedJavaScriptMessageBundle.asTranslatedMessages(bundle, messages, problems);
 	} else {
-		return { messages: PackageJsonMessageBundle.asTranslatedMessages(bundle, messages, problems), problems };
+		translatedMessages = PackageJsonMessageBundle.asTranslatedMessages(bundle, messages, problems);
 	}
+	if (problems.length > 0) {
+		problems.unshift(`Generating localized messages for ${language} resulted in the following problems:`, '');
+		problems.push('', '');
+	}
+	return { messages: translatedMessages, problems };
 }
 
 export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, commentSeparator: string = undefined): any {
