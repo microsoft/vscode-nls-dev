@@ -752,7 +752,7 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 		translatedMessages = PackageJsonMessageBundle.asTranslatedMessages(bundle, messages, problems);
 	}
 	if (problems.length > 0) {
-		problems.unshift(`Generating localized messages for ${language} resulted in the following problems:`, '');
+		problems.unshift(`Generating localized messages for '${language}' resulted in the following problems:`, '');
 		problems.push('', '');
 	}
 	return { messages: translatedMessages, problems };
