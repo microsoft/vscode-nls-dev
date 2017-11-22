@@ -733,15 +733,20 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 		: path.join(i18nBaseDir, language, filename)) + '.i18n.json';
 		
 	let messages: Map<string>;
+	let bundleLength = ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length;
 	if (fs.existsSync(i18nFile)) {
 		let content = stripComments(fs.readFileSync(i18nFile, 'utf8'));
 		messages = JSON.parse(content);
 		if (Object.keys(messages).length === 0) {
-			problems.push(`Message file ${i18nFile.substr(i18nBaseDir.length + 1)} is empty. Missing messages: ${ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length}`);
+			if (bundleLength > 0) {
+				problems.push(`Message file ${i18nFile.substr(i18nBaseDir.length + 1)} is empty. Missing messages: ${bundleLength}`);
+			}
 			messages = undefined;
 		}
 	} else {
-		problems.push(`Message file ${i18nFile.substr(i18nBaseDir.length + 1)} not found. Missing messages: ${ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length}`);
+		if (bundleLength > 0) {
+			problems.push(`Message file ${i18nFile.substr(i18nBaseDir.length + 1)} not found. Missing messages: ${bundleLength}`);
+		}
 	}
 
 	let translatedMessages: string[] | Map<string>;
