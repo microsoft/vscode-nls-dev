@@ -26,7 +26,28 @@ interface FileWithSourceMap extends File {
 	sourceMap: any;
 }
 
+interface SingleMetaDataFile {
+	messages: string[];
+	keys: KeyInfo[];
+	filePath: string;
+}
+
+interface BundledMetaDataEntry {
+	messages: string[];
+	keys: KeyInfo[];
+}
+
+interface BundledMetaDataFile {
+	type: string;
+	name: string;
+	rootPath: string;
+	content: {
+		[key: string]: BundledMetaDataEntry;
+	}
+}
+
 const NLS_JSON = '.nls.json';
+const NLS_METADATA_JSON = '.nls.metaData.json';
 const I18N_JSON = '.i18n.json';
 
 export function rewriteLocalizeCalls(): through.ThroughStream {
@@ -40,7 +61,8 @@ export function rewriteLocalizeCalls(): through.ThroughStream {
 			let sourceMap = file.sourceMap;
 			
 			let result = processFile(content, sourceMap);
-			let bundleFile: File;
+			let messagesFile: File;
+			let metaDataFile: File;
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file.relative}${error}`));
 				this.emit('error', `Failed to rewite file: ${file.relative}`);
@@ -53,19 +75,71 @@ export function rewriteLocalizeCalls(): through.ThroughStream {
 				}
 				if (result.bundle) {
 					let ext = path.extname(file.path);
-					bundleFile = new File({
+					let filePath = file.path.substr(0, file.path.length - ext.length);
+					messagesFile = new File({
 						base: file.base,
-						path: file.path.substr(0, file.path.length - ext.length) + NLS_JSON,
-						contents: new Buffer(JSON.stringify(result.bundle, null, '\t'), 'utf8')
+						path: filePath + NLS_JSON,
+						contents: new Buffer(JSON.stringify(result.bundle.messages, null, '\t'), 'utf8')
+					});
+					let metaDataContent: SingleMetaDataFile = Object.assign({}, result.bundle, { filePath: filePath.substr(file.base.length + 1)});
+					metaDataFile = new File({
+						base: file.base,
+						path: filePath + NLS_METADATA_JSON,
+						contents: new Buffer(JSON.stringify(metaDataContent, null, '\t'), 'utf8')						
 					});
 				}
 			}
 			this.emit('data', file);
-			if (bundleFile) {
-				this.emit('data', bundleFile);
+			if (messagesFile) {
+				this.emit('data', messagesFile);
+			}
+			if (metaDataFile) {
+				this.emit('data', metaDataFile);
 			}
 		}
 	);
+}
+
+export function bundleMetaDataFiles(name: string, rootPath: string): through.ThroughStream {
+	let base: string = undefined;
+	let result: BundledMetaDataFile = {
+		type: "extensionBundle",
+		name,
+		rootPath,
+		content: Object.create(null)
+	};
+	return through(function(file: File) {
+		let basename = path.basename(file.relative);
+		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
+			this.emit('data', file);
+			return;
+		}
+		if (file.isBuffer()) {
+			if (!base) {
+				base = file.base;
+			}
+		} else {
+			this.emit('error', `Failed to bundle file: ${file.relative}`);
+		}
+		if (!base) {
+			base = file.base;
+		}
+		let buffer: Buffer = file.contents as Buffer;
+		let json: SingleMetaDataFile = JSON.parse(buffer.toString('utf8'));
+		result.content[json.filePath] = {
+			messages: json.messages,
+			keys: json.keys
+		};
+	}, function() {
+		if (base) {
+			this.emit('data', new File({
+				base: base,
+				path: path.join(base, 'nls.metadata.json'),
+				contents: new Buffer(JSON.stringify(result, null, '\t'), 'utf8')
+			}))
+		}
+		this.emit('end');
+	});
 }
 
 /**
@@ -99,11 +173,11 @@ export const coreLanguages: string[] = ['chs', 'cht', 'jpn', 'kor', 'deu', 'fra'
 export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, baseDir?: string): through.ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
-		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
+		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
 			this.emit('data', file);
 			return;
 		}
-		let filename = file.relative.substr(0, file.relative.length - NLS_JSON.length);
+		let filename = file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
 		let json;
 		if (file.isBuffer()) {
 			let buffer: Buffer = file.contents as Buffer;
@@ -138,13 +212,13 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 export function createKeyValuePairFile(commentSeparator: string = undefined): through.ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
-		if (basename.length < NLS_JSON.length || NLS_JSON !== basename.substr(basename.length - NLS_JSON.length)) {
+		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
 			this.emit('data', file);
 			return;
 		}
 		let json;
 		let kvpFile;
-		let filename = file.relative.substr(0, file.relative.length - NLS_JSON.length);
+		let filename = file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
 		if (file.isBuffer()) {
 			let buffer: Buffer = file.contents as Buffer;
 			json = JSON.parse(buffer.toString('utf8'));
