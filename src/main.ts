@@ -142,35 +142,12 @@ export function bundleMetaDataFiles(name: string, rootPath: string): through.Thr
 	});
 }
 
-/**
- * This map is used to map our 3 letter encoding in the
- * i18n folder to a file extension matching what is returned
- * from app.getOSLocale().
- */
-const iso639_3_to_2: Map<string> = {
-	'chs': 'zh-cn',
-	'cht': 'zh-tw',
-	'csy': 'cs-cz',
-	'deu': 'de',
-	'enu': 'en',
-	'esn': 'es',
-	'fra': 'fr',
-	'hun': 'hu',
-	'ita': 'it',
-	'jpn': 'ja',
-	'kor': 'ko',
-	'nld': 'nl',
-	'plk': 'pl',
-	'ptb': 'pt-br',
-	'ptg': 'pt',
-	'rus': 'ru',
-	'sve': 'sv-se',
-	'trk': 'tr'
-};
+export interface Language {
+	id: string; // laguage id, e.g. zh-tw, de
+	folderName?: string; // language specific folder name, e.g. cht, deu  (optional, if not set, the id is used)
+}
 
-export const coreLanguages: string[] = ['chs', 'cht', 'jpn', 'kor', 'deu', 'fra', 'esn', 'rus', 'ita'];
-
-export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: string, baseDir?: string): through.ThroughStream {
+export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string): through.ThroughStream {
 	return through(function(file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
@@ -184,14 +161,15 @@ export function createAdditionalLanguageFiles(languages: string[], i18nBaseDir: 
 			json = JSON.parse(buffer.toString('utf8'));
 			let resolvedBundle = resolveMessageBundle(json);
 			languages.forEach((language) => {
-				let result = createLocalizedMessages(filename, resolvedBundle, language, i18nBaseDir, baseDir);
+				let folderName = language.folderName || language.id;
+				let result = createLocalizedMessages(filename, resolvedBundle, folderName, i18nBaseDir, baseDir);
 				if (result.problems && result.problems.length > 0) {
 					result.problems.forEach(problem => log(problem));
 				}
 				if (result.messages) {
 					this.emit('data', new File({
 						base: file.base,
-						path: path.join(file.base, filename) + '.nls.' + iso639_3_to_2[language] + '.json',
+						path: path.join(file.base, filename) + '.nls.' + language.id + '.json',
 						contents: new Buffer(JSON.stringify(result.messages, null, '\t').replace(/\r\n/g, '\n'), 'utf8')
 					}));
 				}
@@ -421,22 +399,22 @@ export class XLF {
 
 			parser.parseString(xlfString, function(err, result) {
 				if (err) {
-					reject(`Failed to parse XLIFF string. ${err}`);
+					reject(new Error(`Failed to parse XLIFF string. ${err}`));
 				}
 
 				const fileNodes: any[] = result['xliff']['file'];
 				if (!fileNodes) {
-					reject('XLIFF file does not contain "xliff" or "file" node(s) required for parsing.');
+					reject(new Error('XLIFF file does not contain "xliff" or "file" node(s) required for parsing.'));
 				}
 
 				fileNodes.forEach((file) => {
 					const originalFilePath = file.$.original;
 					if (!originalFilePath) {
-						reject('XLIFF file node does not contain original attribute to determine the original location of the resource file.');
+						reject(new Error('XLIFF file node does not contain original attribute to determine the original location of the resource file.'));
 					}
 					const language = file.$['target-language'].toLowerCase();
 					if (!language) {
-						reject('XLIFF file node does not contain target-language attribute to determine translated language.');
+						reject(new Error('XLIFF file node does not contain target-language attribute to determine translated language.'));
 					}
 
 					let messages: Map<string> = {};
@@ -452,7 +430,7 @@ export class XLF {
 						if (key && val) {
 							messages[key] = decodeEntities(val);
 						} else {
-							reject('XLIFF file does not contain full localization data. ID or target translation for one of the trans-unit nodes is not present.');
+							reject(new Error('XLIFF file does not contain full localization data. ID or target translation for one of the trans-unit nodes is not present.'));
 						}
 					});
 
@@ -464,33 +442,6 @@ export class XLF {
 		});
 	};
 }
-
-/**
- * This map is used to map the language of a Transifex Xlf file
- * to the folder representation in VS Code i18n folder.
- */
-const iso639_2_to_3: Map<string> = {
-	'zh-cn': 'chs',
-	'zh-tw': 'cht',
-	'zh-hans': 'chs',
-	'zh-hant': 'cht',
-	'cs-cz': 'csy',
-	'de': 'deu',
-	'en': 'enu',
-	'es': 'esn',
-	'fr': 'fra',
-	'hu': 'hun',
-	'it': 'ita',
-	'ja': 'jpn',
-	'ko': 'kor',
-	'nl': 'nld',
-	'pl': 'plk',
-	'pt-br': 'ptb',
-	'pt': 'ptg',
-	'ru': 'rus',
-	'sv-se': 'sve',
-	'tr': 'trk'
-};
 
 export function prepareXlfFiles(projectName: string, extensionName: string): ThroughStream {
 	return through(
@@ -682,13 +633,22 @@ function updateResource(project: string, slug: string, xlfFile: File, apiHostnam
 	});
 }
 
-export function pullXlfFiles(apiHostname: string, username: string, password: string, languages: string[], resources: Resource[]): NodeJS.ReadableStream {
+/**
+ * Fetches a Xlf file from transifex. Returns a file stream with paths `${project}/${slug}.xlf`
+ * 
+ * @param apiHostname The hostname, e.g. www.transifex.com
+ * @param username The user name, e.g. api
+ * @param password The password or access token
+ * @param languageId The language id as used in transifex, e.g. de, zh-Hant
+ * @param resources The list of resources to fetch
+ */
+export function pullXlfFiles(apiHostname: string, username: string, password: string, languageId: string, resources: Resource[]): NodeJS.ReadableStream {
 	if (!resources) {
 		throw new Error('Transifex projects and resources must be defined to be able to pull translations from Transifex.');
 	}
 
 	const credentials = `${username}:${password}`;
-	let expectedTranslationsCount = languages.length * resources.length;
+	let expectedTranslationsCount = resources.length;
 	let translationsRetrieved = 0, called = false;
 
 	return readable(function(count, callback) {
@@ -701,13 +661,11 @@ export function pullXlfFiles(apiHostname: string, username: string, password: st
 			called = true;
 			const stream = this;
 
-			languages.map(function(language) {
-				resources.map(function(resource) {
-					retrieveResource(language, resource, apiHostname, credentials).then((file: File) => {
-						stream.emit('data', file);
-						translationsRetrieved++;
-					}).catch(error => { throw new Error(error); });
-				});
+			resources.map(function(resource) {
+				retrieveResource(languageId, resource, apiHostname, credentials).then((file: File) => {
+					stream.emit('data', file);
+					translationsRetrieved++;
+				}).catch(error => { throw new Error(error); });
 			});
 		}
 
@@ -715,14 +673,13 @@ export function pullXlfFiles(apiHostname: string, username: string, password: st
 	});
 }
 
-function retrieveResource(language: string, resource: Resource, apiHostname, credentials): Promise<File> {
+function retrieveResource(languageId: string, resource: Resource, apiHostname, credentials): Promise<File> {
 	return new Promise<File>((resolve, reject) => {
 		const slug = resource.name.replace(/\//g, '_');
 		const project = resource.project;
-		const iso639 = language.toLowerCase();
 		const options = {
 			hostname: apiHostname,
-			path: `/api/2/project/${project}/resource/${slug}/translation/${iso639}?file&mode=onlyreviewed`,
+			path: `/api/2/project/${project}/resource/${slug}/translation/${languageId}?file&mode=onlyreviewed`,
 			auth: credentials,
 			method: 'GET'
 		};
@@ -732,7 +689,7 @@ function retrieveResource(language: string, resource: Resource, apiHostname, cre
 				res.on('data', (chunk) => xlfBuffer.push(<Buffer>chunk));
 				res.on('end', () => {
 					if (res.statusCode === 200) {
-						resolve(new File({ contents: Buffer.concat(xlfBuffer), path: `${project}/${iso639_2_to_3[language]}/${slug}.xlf` }));
+						resolve(new File({ contents: Buffer.concat(xlfBuffer), path: `${project}/${slug}.xlf` }));
 					}
 					reject(`${slug} in ${project} returned no data. Response code: ${res.statusCode}.`);
 				});
@@ -756,12 +713,9 @@ export function prepareJsonFiles(): ThroughStream {
 			function(resolvedFiles) {
 				resolvedFiles.forEach(file => {
 					let messages = file.messages, translatedFile;
-					translatedFile = createI18nFile(iso639_2_to_3[file.language], file.originalFilePath, messages);
+					translatedFile = createI18nFile(file.originalFilePath, messages);
 					stream.emit('data', translatedFile);
 				});
-			},
-			function(rejectReason) {
-				throw new Error(`XLF parsing error: ${rejectReason}`);
 			}
 		);
 	}, function() {
@@ -771,7 +725,7 @@ export function prepareJsonFiles(): ThroughStream {
 	});
 }
 
-function createI18nFile(base: string, originalFilePath: string, messages: Map<string>): File {
+function createI18nFile(originalFilePath: string, messages: Map<string>): File {
 	let content = [
 		'/*---------------------------------------------------------------------------------------------',
 		' *  Copyright (c) Microsoft Corporation. All rights reserved.',
@@ -781,7 +735,7 @@ function createI18nFile(base: string, originalFilePath: string, messages: Map<st
 	].join('\n') + '\n' + JSON.stringify(messages, null, '\t').replace(/\r\n/g, '\n');
 
 	return new File({
-		path: path.join(base, originalFilePath + '.i18n.json'),
+		path: path.join(originalFilePath + '.i18n.json'),
 		contents: new Buffer(content, 'utf8')
 	});
 }

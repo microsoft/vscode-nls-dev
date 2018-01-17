@@ -726,11 +726,11 @@ export interface LocalizedMessagesResult {
 	problems: string[];
 }
 
-export function createLocalizedMessages(filename: string, bundle: ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle, language: string, i18nBaseDir: string, baseDir?: string): LocalizedMessagesResult {
+export function createLocalizedMessages(filename: string, bundle: ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle, languageFolderName: string, i18nBaseDir: string, baseDir?: string): LocalizedMessagesResult {
 	let problems: string[] = [];
 	let i18nFile = (baseDir 
-		? path.join(i18nBaseDir, language, baseDir, filename)
-		: path.join(i18nBaseDir, language, filename)) + '.i18n.json';
+		? path.join(i18nBaseDir, languageFolderName, baseDir, filename)
+		: path.join(i18nBaseDir, languageFolderName, filename)) + '.i18n.json';
 		
 	let messages: Map<string>;
 	let bundleLength = ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length;
@@ -757,7 +757,7 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 		translatedMessages = PackageJsonMessageBundle.asTranslatedMessages(bundle, messages, problems);
 	}
 	if (problems.length > 0) {
-		problems.unshift(`Generating localized messages for '${language}' resulted in the following problems:`, '');
+		problems.unshift(`Generating localized messages for '${languageFolderName}' resulted in the following problems:`, '');
 		problems.push('', '');
 	}
 	return { messages: translatedMessages, problems };
