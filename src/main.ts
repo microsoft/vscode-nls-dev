@@ -40,7 +40,7 @@ interface BundledMetaDataEntry {
 interface BundledMetaDataFile {
 	type: string;
 	name: string;
-	rootPath: string;
+	outDir: string;
 	content: {
 		[key: string]: BundledMetaDataEntry;
 	}
@@ -100,12 +100,12 @@ export function rewriteLocalizeCalls(): through.ThroughStream {
 	);
 }
 
-export function bundleMetaDataFiles(name: string, rootPath: string): through.ThroughStream {
+export function bundleMetaDataFiles(name: string, outDir: string): through.ThroughStream {
 	let base: string = undefined;
 	let result: BundledMetaDataFile = {
 		type: "extensionBundle",
 		name,
-		rootPath,
+		outDir,
 		content: Object.create(null)
 	};
 	return through(function(file: File) {
