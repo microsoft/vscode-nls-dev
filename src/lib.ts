@@ -493,7 +493,8 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 				let references = service.getReferencesAtPosition(filename, parent.name.pos + 1);
 				references.forEach(reference => {
 					if (!reference.isWriteAccess) {
-						memo.push(findClosestNode(sourceFile, reference.textSpan));
+						let node = findClosestNode(sourceFile, reference.textSpan)
+						memo.push(node);
 					}
 				});
 			}
@@ -502,22 +503,22 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 	},[]);
 
 	const loadCalls = nlsReferences.reduce<ts.CallExpression[]>((memo, node) => {
-		let callExpression = node;
-		while (callExpression && callExpression.kind != ts.SyntaxKind.CallExpression) {
-			callExpression = callExpression.parent;
+		// We are looking for nls.loadMessageBundle || nls.config. In the AST
+		// this is Indetifier -> PropertyAccess -> CallExpression.
+		if (!isIdentifier(node) || !isPropertyAccessExpression(node.parent) || !isCallExpression(node.parent.parent)) {
+			return memo;
 		}
-		if (isCallExpression(callExpression)) {
-			let expression = callExpression.expression;
-			if (isPropertyAccessExpression(expression)) {
-				if (expression.name.text === 'loadMessageBundle') {
-					// We have a load call like nls.load();
-					memo.push(callExpression);
-				} else if (expression.name.text === 'config') {
-					// We have a load call like nls.config({...})();
-					let parent = callExpression.parent;
-					if (isCallExpression(parent) && parent.expression === callExpression) {
-						memo.push(parent);
-					}
+		let callExpression = node.parent.parent;
+		let expression = callExpression.expression;
+		if (isPropertyAccessExpression(expression)) {
+			if (expression.name.text === 'loadMessageBundle') {
+				// We have a load call like nls.loadMessageBundle();
+				memo.push(callExpression);
+			} else if (expression.name.text === 'config') {
+				// We have a load call like nls.config({...})();
+				let parent = callExpression.parent;
+				if (isCallExpression(parent) && parent.expression === callExpression) {
+					memo.push(parent);
 				}
 			}
 		}
