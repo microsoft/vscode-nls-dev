@@ -9,7 +9,7 @@ import File = require('vinyl');
 import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages, bundle2keyValuePair, Map } from './lib';
 import * as fs from 'fs';
 import { through, readable } from 'event-stream';
-import { ThroughStream } from 'through';
+import { ThroughStream as _ThroughStream } from 'through';
 import * as Is from 'is';
 import * as xml2js from 'xml2js';
 import * as glob from 'glob';
@@ -50,11 +50,18 @@ const NLS_JSON = '.nls.json';
 const NLS_METADATA_JSON = '.nls.metaData.json';
 const I18N_JSON = '.i18n.json';
 
-export function rewriteLocalizeCalls(): through.ThroughStream {
+export interface ThroughStream extends _ThroughStream {
+	queue(data: File | null);
+	push(data: File | null);
+	paused: boolean;
+}
+
+export function rewriteLocalizeCalls(): ThroughStream {
 	return through(
-		function (file: FileWithSourceMap) {
+		function (this: ThroughStream, file: FileWithSourceMap) {
 			if (!file.isBuffer()) {
 				this.emit('error', `Failed to read file: ${file.relative}`);
+				return;
 			}
 			let buffer: Buffer = file.contents as Buffer;
 			let content = buffer.toString('utf8');
@@ -89,18 +96,18 @@ export function rewriteLocalizeCalls(): through.ThroughStream {
 					});
 				}
 			}
-			this.emit('data', file);
+			this.queue(file);
 			if (messagesFile) {
-				this.emit('data', messagesFile);
+				this.queue(messagesFile);
 			}
 			if (metaDataFile) {
-				this.emit('data', metaDataFile);
+				this.queue(metaDataFile);
 			}
 		}
 	);
 }
 
-export function bundleMetaDataFiles(name: string, outDir: string): through.ThroughStream {
+export function bundleMetaDataFiles(name: string, outDir: string): ThroughStream {
 	let base: string = undefined;
 	let result: BundledMetaDataFile = {
 		type: "extensionBundle",
@@ -108,10 +115,10 @@ export function bundleMetaDataFiles(name: string, outDir: string): through.Throu
 		outDir,
 		content: Object.create(null)
 	};
-	return through(function(file: File) {
+	return through(function(this: ThroughStream, file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
-			this.emit('data', file);
+			this.queue(file);
 			return;
 		}
 		if (file.isBuffer()) {
@@ -120,6 +127,7 @@ export function bundleMetaDataFiles(name: string, outDir: string): through.Throu
 			}
 		} else {
 			this.emit('error', `Failed to bundle file: ${file.relative}`);
+			return;
 		}
 		if (!base) {
 			base = file.base;
@@ -132,13 +140,13 @@ export function bundleMetaDataFiles(name: string, outDir: string): through.Throu
 		};
 	}, function() {
 		if (base) {
-			this.emit('data', new File({
+			this.queue(new File({
 				base: base,
 				path: path.join(base, 'nls.metadata.json'),
 				contents: new Buffer(JSON.stringify(result, null, '\t'), 'utf8')
-			}))
+			}));
 		}
-		this.emit('end');
+		this.queue(null);
 	});
 }
 
@@ -147,11 +155,11 @@ export interface Language {
 	folderName?: string; // language specific folder name, e.g. cht, deu  (optional, if not set, the id is used)
 }
 
-export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string): through.ThroughStream {
-	return through(function(file: File) {
+export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string): ThroughStream {
+	return through(function(this: ThroughStream, file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
-			this.emit('data', file);
+			this.queue(file);
 			return;
 		}
 		let filename = file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
@@ -167,7 +175,7 @@ export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir
 					result.problems.forEach(problem => log(problem));
 				}
 				if (result.messages) {
-					this.emit('data', new File({
+					this.queue(new File({
 						base: file.base,
 						path: path.join(file.base, filename) + '.nls.' + language.id + '.json',
 						contents: new Buffer(JSON.stringify(result.messages, null, '\t').replace(/\r\n/g, '\n'), 'utf8')
@@ -177,7 +185,61 @@ export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir
 		} else {
 			this.emit('error', `Failed to read component file: ${file.relative}`)
 		}
-		this.emit('data', file);
+		this.queue(file);
+	});
+}
+
+interface ExtensionLanguageBundle {
+	[key: string]: string[];
+}
+
+export function bundleLanguageFiles(): through.ThroughStream {
+	interface MapValue {
+		base: string;
+		content: ExtensionLanguageBundle;
+	};
+	let bundles: Map<MapValue> = Object.create(null);
+	function getModuleKey(relativeFile: string): string {
+		return relativeFile.match(/(.*)\.nls\.(?:.*\.)?json/)[1];
+	}
+
+	return through(function(this: ThroughStream, file: File) {
+		let basename = path.basename(file.path);
+		let matches = basename.match(/.nls\.(?:(.*)\.)?json/);
+		if (!matches || !file.isBuffer()) {
+			// Not an nls file.
+			this.queue(file);
+			return;
+		}
+		let language = matches[1] ? matches[1] : 'en';
+		let bundle = bundles[language];
+		if (!bundle) {
+			bundle = {
+				base: file.base,
+				content: Object.create(null)
+			};
+			bundles[language] = bundle;
+		}
+		bundle.content[getModuleKey(file.relative)] = JSON.parse((file.contents as Buffer).toString('utf8'));
+	}, function() {
+		for (let language in bundles) {
+			let bundle = bundles[language];
+			let languageId = language === 'en' ? '' : `${language}.`;
+			let file = new File({
+				base: bundle.base,
+				path: path.join(bundle.base, `nls.bundle.${languageId}json`),
+				contents: new Buffer(JSON.stringify(bundle.content), 'utf8')
+			});
+			this.queue(file);
+		}
+		this.queue(null);
+	});
+}
+
+export function debug(prefix: string = ''): through.ThroughStream {
+	return through(function (this: ThroughStream, file: File) {
+		console.log(`${prefix}In pipe ${file.path}`);
+		this.queue(file);
 	});
 }
 
@@ -188,10 +250,10 @@ export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir
  *  the commentSeparator value. If omitted comments will be includes as a string array.
  */
 export function createKeyValuePairFile(commentSeparator: string = undefined): through.ThroughStream {
-	return through(function(file: File) {
+	return through(function(this: ThroughStream, file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
-			this.emit('data', file);
+			this.queue(file);
 			return;
 		}
 		let json;
@@ -203,7 +265,7 @@ export function createKeyValuePairFile(commentSeparator: string = undefined): th
 			if (JavaScriptMessageBundle.is(json)) {
 				let resolvedBundle = json as JavaScriptMessageBundle;
 				if (resolvedBundle.messages.length !== resolvedBundle.keys.length) {
-					this.emit('data', file);
+					this.queue(file);
 					return;
 				}
 				let kvpObject = bundle2keyValuePair(resolvedBundle, commentSeparator);
@@ -213,14 +275,16 @@ export function createKeyValuePairFile(commentSeparator: string = undefined): th
 					contents: new Buffer(JSON.stringify(kvpObject, null, '\t'), 'utf8')
 				});
 			} else {
-				this.emit('error', `Not a valid JavaScript message bundle: ${file.relative}`)
+				this.emit('error', `Not a valid JavaScript message bundle: ${file.relative}`);
+				return;
 			}
 		} else {
-			this.emit('error', `Failed to read JavaScript message bundle file: ${file.relative}`)
+			this.emit('error', `Failed to read JavaScript message bundle file: ${file.relative}`);
+			return;
 		}
-		this.emit('data', file);
+		this.queue(file);
 		if (kvpFile) {
-			this.emit('data', kvpFile);
+			this.queue(kvpFile);
 		}
 	});
 }
@@ -443,7 +507,7 @@ export class XLF {
 	};
 }
 
-export function prepareXlfFiles(projectName: string, extensionName: string): ThroughStream {
+export function prepareXlfFiles(projectName: string, extensionName: string): through.ThroughStream {
 	return through(
 		function (file: File) {
 			if (!file.isBuffer()) {
@@ -492,7 +556,7 @@ function importModuleOrPackageJson(file: File, json: ModuleJsonFormat | PackageJ
 	if (++extensions[extensionName].processed === localizationFilesCount) {
 		const newFilePath = path.join(projectName, extensionName + '.xlf');
 		const xlfFile = new File({ path: newFilePath, contents: new Buffer(extension.xlf.toString(), 'utf-8')});
-		stream.emit('data', xlfFile);
+		stream.queue(xlfFile);
 	}
 }
 
@@ -500,7 +564,7 @@ export function pushXlfFiles(apiHostname: string, username: string, password: st
 	let tryGetPromises = [];
 	let updateCreatePromises = [];
 
-	return through(function(file: File) {
+	return through(function(this: ThroughStream, file: File) {
 		const project = path.dirname(file.relative);
 		const fileName = path.basename(file.path);
 		const slug = fileName.substr(0, fileName.length - '.xlf'.length);
@@ -522,7 +586,7 @@ export function pushXlfFiles(apiHostname: string, username: string, password: st
 		// End the pipe only after all the communication with Transifex API happened
 		Promise.all(tryGetPromises).then(() => {
 			Promise.all(updateCreatePromises).then(() => {
-				this.emit('end');
+				this.queue(null);
 			}).catch((reason) => { throw new Error(reason); });
 		}).catch((reason) => { throw new Error(reason); });
 	});
@@ -704,7 +768,7 @@ function retrieveResource(languageId: string, resource: Resource, apiHostname, c
 export function prepareJsonFiles(): ThroughStream {
 	let parsePromises: Promise<ParsedXLF[]>[] = [];
 
-	return through(function(xlf: File) {
+	return through(function(this: ThroughStream, xlf: File) {
 		let stream = this;
 		let parsePromise = XLF.parse(xlf.contents.toString());
 		parsePromises.push(parsePromise);
@@ -714,13 +778,13 @@ export function prepareJsonFiles(): ThroughStream {
 				resolvedFiles.forEach(file => {
 					let messages = file.messages, translatedFile;
 					translatedFile = createI18nFile(file.originalFilePath, messages);
-					stream.emit('data', translatedFile);
+					stream.queue(translatedFile);
 				});
 			}
 		);
 	}, function() {
 		Promise.all(parsePromises)
-			.then(() => { this.emit('end'); })
+			.then(() => { this.queue(null); })
 			.catch(reason => { throw new Error(reason); })
 	});
 }
