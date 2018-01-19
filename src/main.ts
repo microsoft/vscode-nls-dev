@@ -200,7 +200,7 @@ export function bundleLanguageFiles(): through.ThroughStream {
 	};
 	let bundles: Map<MapValue> = Object.create(null);
 	function getModuleKey(relativeFile: string): string {
-		return relativeFile.match(/(.*)\.nls\.(?:.*\.)?json/)[1];
+		return relativeFile.match(/(.*)\.nls\.(?:.*\.)?json/)[1].replace(/\\/g, '/');
 	}
 
 	return through(function(this: ThroughStream, file: File) {
