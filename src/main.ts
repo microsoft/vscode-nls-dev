@@ -47,7 +47,7 @@ interface BundledMetaDataFile {
 }
 
 const NLS_JSON = '.nls.json';
-const NLS_METADATA_JSON = '.nls.metaData.json';
+const NLS_METADATA_JSON = '.nls.metadata.json';
 const I18N_JSON = '.i18n.json';
 
 export interface ThroughStream extends _ThroughStream {
@@ -73,6 +73,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file.relative}${error}`));
 				this.emit('error', `Failed to rewite file: ${file.relative}`);
+				return;
 			} else {
 				if (result.contents) {
 					file.contents = new Buffer(result.contents, 'utf8');
@@ -157,12 +158,18 @@ export interface Language {
 
 export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string): ThroughStream {
 	return through(function(this: ThroughStream, file: File) {
+		// Queue the original file again.
+		this.queue(file);
+		
 		let basename = path.basename(file.relative);
-		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
-			this.queue(file);
+		let isPackageFile = basename === 'package.nls.json';
+		let isAffected = isPackageFile || basename.match(/nls.metadata.json$/) !== null;
+		if (!isAffected) {
 			return;
 		}
-		let filename = file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
+		let filename = isPackageFile 
+			? file.relative.substr(0, file.relative.length - '.nls.json'.length)
+			: file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
 		let json;
 		if (file.isBuffer()) {
 			let buffer: Buffer = file.contents as Buffer;
@@ -183,9 +190,9 @@ export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir
 				}
  			});
 		} else {
-			this.emit('error', `Failed to read component file: ${file.relative}`)
+			this.emit('error', `Failed to read component file: ${file.relative}`);
+			return;
 		}
-		this.queue(file);
 	});
 }
 
