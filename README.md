@@ -6,10 +6,18 @@ language servers written in TS and JS. It also contains helper methods to conver
 [![NPM Version](https://img.shields.io/npm/v/vscode-nls-dev.svg)](https://npmjs.org/package/vscode-nls-dev)
 [![NPM Downloads](https://img.shields.io/npm/dm/vscode-nls-dev.svg)](https://npmjs.org/package/vscode-nls-dev)
 
-* 2.1.0: Add support to push to and pull from Transifex.
+### 3.0.0
 
-* 2.0.0: based on TypeScript 2.0. Since TS changed the shape of the d.ts files for 2.0.x a major version number got introduce to not
-  break existing clients using TypeScript 1.8.x.
+* added support to bundle the strings into a single `nls.bundle(.${locale})?.json` file.
+* added support for VS Code language packs.
+
+### 2.1.0: 
+
+* Add support to push to and pull from Transifex.
+
+### 2.0.0: 
+
+* based on TypeScript 2.0. Since TS changed the shape of the d.ts files for 2.0.x a major version number got introduce to not break existing clients using TypeScript 1.8.x.
 
 ### JSON->XLIFF->JSON
 To perform unlocalized JSON to XLIFF conversion it is required to call `prepareXlfFiles(projectName, extensionName)` piping your extension/language server directory to it, where `projectName` is the Transifex project name (if such exists) and `extensionName` is the name of your extension/language server. Thereby, XLF files will have a path of `projectName/extensionName.xlf`.
