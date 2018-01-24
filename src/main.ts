@@ -39,14 +39,15 @@ interface BundledMetaDataEntry {
 	keys: KeyInfo[];
 }
 
-interface BundledMetaDataFile {
+interface BundledMetaDataHeader {
+	id: string;
 	type: string;
 	hash: string;
-	id: string;
 	outDir: string;
-	content: {
-		[key: string]: BundledMetaDataEntry;
-	}
+}
+
+interface BundledMetaDataFile {
+	[key: string]: BundledMetaDataEntry;
 }
 
 const NLS_JSON = '.nls.json';
@@ -139,23 +140,23 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 		};
 	}, function() {
 		if (base) {
-			let result: BundledMetaDataFile = {
-				type: "extensionBundle",
-				hash: "",
+			let stringContent: string = JSON.stringify(content);
+			let hash = crypto.createHash('sha256').update(stringContent).digest('base64');
+			let header: BundledMetaDataHeader = {
 				id,
-				outDir,
-				content: content
+				type: "extensionBundle",
+				hash,
+				outDir
 			};
-			let hash = crypto.createHash('sha256').
-				update(result.type).
-				update(result.id).
-				update(result.outDir).
-				update(JSON.stringify(content)).digest('base64');
-			result.hash = hash;
+			this.queue(new File({
+				base: base,
+				path: path.join(base, 'nls.metadata.header.json'),
+				contents: new Buffer(JSON.stringify(header), 'utf8')
+			}));
 			this.queue(new File({
 				base: base,
 				path: path.join(base, 'nls.metadata.json'),
-				contents: new Buffer(JSON.stringify(result, null, '\t'), 'utf8')
+				contents: new Buffer(content, 'utf8')
 			}));
 		}
 		this.queue(null);
