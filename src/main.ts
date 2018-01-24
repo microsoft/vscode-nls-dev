@@ -42,7 +42,7 @@ interface BundledMetaDataEntry {
 interface BundledMetaDataFile {
 	type: string;
 	hash: string;
-	name: string;
+	id: string;
 	outDir: string;
 	content: {
 		[key: string]: BundledMetaDataEntry;
@@ -111,7 +111,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 	);
 }
 
-export function bundleMetaDataFiles(name: string, outDir: string): ThroughStream {
+export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 	let base: string = undefined;
 	let content = Object.create(null);
 	return through(function(this: ThroughStream, file: File) {
@@ -142,13 +142,13 @@ export function bundleMetaDataFiles(name: string, outDir: string): ThroughStream
 			let result: BundledMetaDataFile = {
 				type: "extensionBundle",
 				hash: "",
-				name,
+				id,
 				outDir,
 				content: content
 			};
 			let hash = crypto.createHash('sha256').
 				update(result.type).
-				update(result.name).
+				update(result.id).
 				update(result.outDir).
 				update(JSON.stringify(content)).digest('base64');
 			result.hash = hash;
