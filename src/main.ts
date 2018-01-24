@@ -156,7 +156,7 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 			this.queue(new File({
 				base: base,
 				path: path.join(base, 'nls.metadata.json'),
-				contents: new Buffer(content, 'utf8')
+				contents: new Buffer(stringContent, 'utf8')
 			}));
 		}
 		this.queue(null);
