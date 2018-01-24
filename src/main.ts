@@ -5,9 +5,11 @@
 'use strict';
 
 import * as path from 'path';
+import * as crypto from 'crypto';
+import * as fs from 'fs';
+
 import File = require('vinyl');
 import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages, bundle2keyValuePair, Map } from './lib';
-import * as fs from 'fs';
 import { through, readable } from 'event-stream';
 import { ThroughStream as _ThroughStream } from 'through';
 import * as Is from 'is';
@@ -39,6 +41,7 @@ interface BundledMetaDataEntry {
 
 interface BundledMetaDataFile {
 	type: string;
+	hash: string;
 	name: string;
 	outDir: string;
 	content: {
@@ -110,12 +113,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 
 export function bundleMetaDataFiles(name: string, outDir: string): ThroughStream {
 	let base: string = undefined;
-	let result: BundledMetaDataFile = {
-		type: "extensionBundle",
-		name,
-		outDir,
-		content: Object.create(null)
-	};
+	let content = Object.create(null);
 	return through(function(this: ThroughStream, file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
@@ -135,12 +133,25 @@ export function bundleMetaDataFiles(name: string, outDir: string): ThroughStream
 		}
 		let buffer: Buffer = file.contents as Buffer;
 		let json: SingleMetaDataFile = JSON.parse(buffer.toString('utf8'));
-		result.content[json.filePath] = {
+		content[json.filePath] = {
 			messages: json.messages,
 			keys: json.keys
 		};
 	}, function() {
 		if (base) {
+			let result: BundledMetaDataFile = {
+				type: "extensionBundle",
+				hash: "",
+				name,
+				outDir,
+				content: content
+			};
+			let hash = crypto.createHash('sha256').
+				update(result.type).
+				update(result.name).
+				update(result.outDir).
+				update(JSON.stringify(content)).digest('base64');
+			result.hash = hash;
 			this.queue(new File({
 				base: base,
 				path: path.join(base, 'nls.metadata.json'),
