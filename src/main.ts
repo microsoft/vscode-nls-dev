@@ -16,6 +16,7 @@ import * as Is from 'is';
 import * as xml2js from 'xml2js';
 import * as glob from 'glob';
 import * as https from 'https';
+import { isString } from 'util';
 
 var util = require('gulp-util');
 var iconv  = require('iconv-lite');
@@ -114,7 +115,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 
 export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 	let base: string = undefined;
-	let content = Object.create(null);
+	let content: BundledMetaDataFile = Object.create(null);
 	return through(function(this: ThroughStream, file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
@@ -140,8 +141,23 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 		};
 	}, function() {
 		if (base) {
-			let stringContent: string = JSON.stringify(content);
-			let hash = crypto.createHash('sha256').update(stringContent).digest('base64');
+			let sha256 = crypto.createHash('sha256');
+			let keys = Object.keys(content).sort();
+			for (let key of keys) {
+				sha256.update(key);
+				let entry: BundledMetaDataEntry = content[key];
+				for (let keyInfo of entry.keys) {
+					if (isString(keyInfo)) {
+						sha256.update(keyInfo);
+					} else {
+						sha256.update(keyInfo.key)
+					}
+				}
+				for (let message of entry.messages) {
+					sha256.update(message);
+				}
+			}
+			let hash = sha256.digest('hex');
 			let header: BundledMetaDataHeader = {
 				id,
 				type: "extensionBundle",
@@ -156,7 +172,7 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 			this.queue(new File({
 				base: base,
 				path: path.join(base, 'nls.metadata.json'),
-				contents: new Buffer(stringContent, 'utf8')
+				contents: new Buffer(JSON.stringify(content), 'utf8')
 			}));
 		}
 		this.queue(null);
