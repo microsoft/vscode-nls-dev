@@ -141,23 +141,28 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 		};
 	}, function() {
 		if (base) {
-			let sha256 = crypto.createHash('sha256');
+			// We use md5 since we only need a finger print.
+			// The actual data is public and put into a file.
+			// Since the hash is used as a file name in the file
+			// system md5 shortens the name and therfore the path
+			// especially under Windows (max path issue).
+			let md5 = crypto.createHash('md5');
 			let keys = Object.keys(content).sort();
 			for (let key of keys) {
-				sha256.update(key);
+				md5.update(key);
 				let entry: BundledMetaDataEntry = content[key];
 				for (let keyInfo of entry.keys) {
 					if (isString(keyInfo)) {
-						sha256.update(keyInfo);
+						md5.update(keyInfo);
 					} else {
-						sha256.update(keyInfo.key)
+						md5.update(keyInfo.key)
 					}
 				}
 				for (let message of entry.messages) {
-					sha256.update(message);
+					md5.update(message);
 				}
 			}
-			let hash = sha256.digest('hex');
+			let hash = md5.digest('hex');
 			let header: BundledMetaDataHeader = {
 				id,
 				type: "extensionBundle",
