@@ -61,6 +61,22 @@ export interface ThroughStream extends _ThroughStream {
 	paused: boolean;
 }
 
+function removePathPrefix(path: string, prefix: string): string {
+	if (!prefix) {
+		return path;
+	}
+	if (!path.startsWith(prefix)) {
+		return path;
+	}
+	let ch = prefix.charAt(prefix.length - 1);
+
+	if (ch === '/' || ch === '\\') {
+		return path.substr(prefix.length);
+	} else {
+		return path.substr(prefix.length + 1);
+	}
+}
+
 export function rewriteLocalizeCalls(): ThroughStream {
 	return through(
 		function (this: ThroughStream, file: FileWithSourceMap) {
@@ -94,7 +110,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 						path: filePath + NLS_JSON,
 						contents: new Buffer(JSON.stringify(result.bundle.messages, null, '\t'), 'utf8')
 					});
-					let metaDataContent: SingleMetaDataFile = Object.assign({}, result.bundle, { filePath: filePath.substr(file.base.length + 1)});
+					let metaDataContent: SingleMetaDataFile = Object.assign({}, result.bundle, { filePath: removePathPrefix(filePath, file.base) });
 					metaDataFile = new File({
 						base: file.base,
 						path: filePath + NLS_METADATA_JSON,
@@ -187,6 +203,7 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 export interface Language {
 	id: string; // laguage id, e.g. zh-tw, de
 	folderName?: string; // language specific folder name, e.g. cht, deu  (optional, if not set, the id is used)
+	transifexId?: string; // language specific identifier used in transifex e.g. zh-hant used for zh-tw id.
 }
 
 export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string): ThroughStream {
@@ -547,57 +564,61 @@ export class XLF {
 	};
 }
 
-export function prepareXlfFiles(projectName: string, extensionName: string): through.ThroughStream {
-	return through(
-		function (file: File) {
-			if (!file.isBuffer()) {
-				log('Error', `Failed to read component file: ${file.relative}`);
-			}
-
-			const extension = path.extname(file.path);
-			if (extension === '.json') {
-				const json = JSON.parse((<Buffer>file.contents).toString('utf8'));
-
-				if (PackageJsonFormat.is(json) || ModuleJsonFormat.is(json)) {
-					importModuleOrPackageJson(file, json, projectName, this, extensionName);
+export function createXlfFiles(projectName: string, extensionName: string): ThroughStream {
+	let _xlf: XLF;
+	let header: BundledMetaDataHeader;
+	let data: BundledMetaDataFile;
+	function getXlf() {
+		if (!_xlf) {
+			_xlf = new XLF(projectName);
+		}
+		return _xlf;
+	}
+	return through(function(this: ThroughStream, file: File) {
+		if (!file.isBuffer()) {
+			this.emit('error', `File ${file.path} is not a buffer`);
+			return;
+		}
+		const buffer: Buffer = file.contents as Buffer;
+		const basename = path.basename(file.path);
+		if (basename === 'package.nls.json') {
+			const json: PackageJsonFormat = JSON.parse(buffer.toString('utf8'));
+			const keys = Object.keys(json);
+			const messages = keys.map((key) => {
+				const value = json[key];
+				if (Is.string(value)) {
+					return value;
+				} else if (value) {
+					return value.message;
 				} else {
-					log('Error', 'JSON format cannot be deduced.');
+					return `Unknown message for key: ${key}`;
 				}
+			});
+			getXlf().addFile('package', keys, messages);
+		} else if (basename === 'nls.metadata.json') {
+			data = JSON.parse(buffer.toString('utf8'));
+		} else if (basename === 'nls.metadata.header.json') {
+			header = JSON.parse(buffer.toString('utf8'));
+		} else {
+			this.emit('error', new Error(`${file.path} is not a valid nls or meta data file`));
+			return;
+		}
+	}, function(this: ThroughStream) {
+		if (header && data) {
+			let outDir = header.outDir;
+			for (let module in data) {
+				const fileContent = data[module];
+				getXlf().addFile(`${outDir}/${module}`, fileContent.keys, fileContent.messages);
 			}
 		}
-	);
-}
-
-var extensions: Map<{ xlf: XLF, processed: number }> = Object.create(null);
-function importModuleOrPackageJson(file: File, json: ModuleJsonFormat | PackageJsonFormat, projectName: string, stream: ThroughStream, extensionName: string): void {
-	if (ModuleJsonFormat.is(json) && json['keys'].length !== json['messages'].length) {
-		throw new Error(`There is a mismatch between keys and messages in ${file.relative}`);
-	}
-
-	// Prepare the source path for <original/> attribute in XLF & extract messages from JSON
-	const formattedSourcePath = file.relative.replace(/\\/g, '/');
-	const messages = Object.keys(json).map((key) => json[key].toString());
-
-	// Stores the amount of localization files to be transformed to XLF before the emission
-	let localizationFilesCount = glob.sync('**/*.nls.json').length;
-	let originalFilePath = `${formattedSourcePath.substr(0, formattedSourcePath.length - '.nls.json'.length)}`;
-
-	let extension = extensions[extensionName] ?
-		extensions[extensionName] : extensions[extensionName] = { xlf: new XLF(projectName), processed: 0 };
-	
-	// .nls.json can come with empty array of keys and messages, check for it
-	if (ModuleJsonFormat.is(json) && json.keys.length !== 0) {
-		extension.xlf.addFile(originalFilePath, json.keys, json.messages);
-	} else if (PackageJsonFormat.is(json) && Object.keys(json).length !== 0) {
-		extension.xlf.addFile(originalFilePath, Object.keys(json), messages);
-	}
-
-	// Check if XLF is populated with file nodes to emit it
-	if (++extensions[extensionName].processed === localizationFilesCount) {
-		const newFilePath = path.join(projectName, extensionName + '.xlf');
-		const xlfFile = new File({ path: newFilePath, contents: new Buffer(extension.xlf.toString(), 'utf-8')});
-		stream.queue(xlfFile);
-	}
+		if (_xlf) {
+			let xlfFile = new File({
+				path: path.join(projectName, extensionName + '.xlf'),
+				contents: new Buffer(_xlf.toString(), 'utf8')
+			});
+			this.queue(xlfFile);			
+		}
+	});
 }
 
 export function pushXlfFiles(apiHostname: string, username: string, password: string): ThroughStream {
@@ -743,10 +764,10 @@ function updateResource(project: string, slug: string, xlfFile: File, apiHostnam
  * @param apiHostname The hostname, e.g. www.transifex.com
  * @param username The user name, e.g. api
  * @param password The password or access token
- * @param languageId The language id as used in transifex, e.g. de, zh-Hant
+ * @param language The language used to pull.
  * @param resources The list of resources to fetch
  */
-export function pullXlfFiles(apiHostname: string, username: string, password: string, languageId: string, resources: Resource[]): NodeJS.ReadableStream {
+export function pullXlfFiles(apiHostname: string, username: string, password: string, language: Language, resources: Resource[]): NodeJS.ReadableStream {
 	if (!resources) {
 		throw new Error('Transifex projects and resources must be defined to be able to pull translations from Transifex.');
 	}
@@ -766,7 +787,7 @@ export function pullXlfFiles(apiHostname: string, username: string, password: st
 			const stream = this;
 
 			resources.map(function(resource) {
-				retrieveResource(languageId, resource, apiHostname, credentials).then((file: File) => {
+				retrieveResource(language, resource, apiHostname, credentials).then((file: File) => {
 					stream.emit('data', file);
 					translationsRetrieved++;
 				}).catch(error => { throw new Error(error); });
@@ -777,13 +798,14 @@ export function pullXlfFiles(apiHostname: string, username: string, password: st
 	});
 }
 
-function retrieveResource(languageId: string, resource: Resource, apiHostname, credentials): Promise<File> {
+function retrieveResource(language: Language, resource: Resource, apiHostname, credentials): Promise<File> {
 	return new Promise<File>((resolve, reject) => {
 		const slug = resource.name.replace(/\//g, '_');
 		const project = resource.project;
+		const transifexLanguageId = language.transifexId || language.id;		
 		const options = {
 			hostname: apiHostname,
-			path: `/api/2/project/${project}/resource/${slug}/translation/${languageId}?file&mode=onlyreviewed`,
+			path: `/api/2/project/${project}/resource/${slug}/translation/${transifexLanguageId}?file&mode=onlyreviewed`,
 			auth: credentials,
 			method: 'GET'
 		};
