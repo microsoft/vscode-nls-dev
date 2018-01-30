@@ -616,8 +616,9 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 				path: path.join(projectName, extensionName + '.xlf'),
 				contents: new Buffer(_xlf.toString(), 'utf8')
 			});
-			this.queue(xlfFile);			
+			this.queue(xlfFile);
 		}
+		this.queue(null);
 	});
 }
 
