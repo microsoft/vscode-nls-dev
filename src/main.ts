@@ -456,6 +456,13 @@ export class XLF {
 	}
 
 	public addFile(original: string, keys: any[], messages: string[]) {
+		if (keys.length === 0) {
+			return;
+		}
+		if (keys.length !== messages.length) {
+			throw new Error(`Unmatching keys(${keys.length}) and messages(${messages.length}).`);
+		}
+
 		this.files[original] = [];
 		let existingKeys = [];
 
@@ -540,22 +547,23 @@ export class XLF {
 
 					let messages: Map<string> = {};
 					const transUnits = file.body[0]['trans-unit'];
+					if (transUnits) {
+						transUnits.forEach(unit => {
+							const key = unit.$.id;
+							if (!unit.target) {
+								return; // No translation available
+							}
 
-					transUnits.forEach(unit => {
-						const key = unit.$.id;
-						if (!unit.target) {
-							return; // No translation available
-						}
+							const val = unit.target.toString();
+							if (key && val) {
+								messages[key] = decodeEntities(val);
+							} else {
+								reject(new Error('XLIFF file does not contain full localization data. ID or target translation for one of the trans-unit nodes is not present.'));
+							}
+						});
 
-						const val = unit.target.toString();
-						if (key && val) {
-							messages[key] = decodeEntities(val);
-						} else {
-							reject(new Error('XLIFF file does not contain full localization data. ID or target translation for one of the trans-unit nodes is not present.'));
-						}
-					});
-
-					files.push({ messages: messages, originalFilePath: originalFilePath, language: language });
+						files.push({ messages: messages, originalFilePath: originalFilePath, language: language });
+					}
 				});
 
 				resolve(files);
