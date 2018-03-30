@@ -53,7 +53,7 @@ const transifexExtensionName = 'vscode-node-debug'; // your resource name in Tra
 
 gulp.task('transifex-push', function() {
 	return gulp.src('**/*.nls.json')
-		.pipe(nls.prepareXlfFiles(transifexProjectName, transifexExtensionName))
+		.pipe(nls.createXlfFiles(transifexProjectName, transifexExtensionName))
 		.pipe(nls.pushXlfFiles(transifexApiHostname, transifexApiName, transifexApiToken));
 });
 
