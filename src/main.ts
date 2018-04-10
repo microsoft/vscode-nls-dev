@@ -87,7 +87,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 			let buffer: Buffer = file.contents as Buffer;
 			let content = buffer.toString('utf8');
 			let sourceMap = file.sourceMap;
-			
+
 			let result = processFile(content, sourceMap);
 			let messagesFile: File;
 			let metaDataFile: File;
@@ -114,7 +114,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 					metaDataFile = new File({
 						base: file.base,
 						path: filePath + NLS_METADATA_JSON,
-						contents: new Buffer(JSON.stringify(metaDataContent, null, '\t'), 'utf8')						
+						contents: new Buffer(JSON.stringify(metaDataContent, null, '\t'), 'utf8')
 					});
 				}
 			}
@@ -210,14 +210,14 @@ export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir
 	return through(function(this: ThroughStream, file: File) {
 		// Queue the original file again.
 		this.queue(file);
-		
+
 		let basename = path.basename(file.relative);
 		let isPackageFile = basename === 'package.nls.json';
 		let isAffected = isPackageFile || basename.match(/nls.metadata.json$/) !== null;
 		if (!isAffected) {
 			return;
 		}
-		let filename = isPackageFile 
+		let filename = isPackageFile
 			? file.relative.substr(0, file.relative.length - '.nls.json'.length)
 			: file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
 		let json;
@@ -302,8 +302,8 @@ export function debug(prefix: string = ''): through.ThroughStream {
 
 /**
  * A stream the creates additional key/value pair files for structured nls files.
- * 
- * @param commentSeparator - if provided comments will be joined into one string using 
+ *
+ * @param commentSeparator - if provided comments will be joined into one string using
  *  the commentSeparator value. If omitted comments will be includes as a string array.
  */
 export function createKeyValuePairFile(commentSeparator: string = undefined): through.ThroughStream {
@@ -616,7 +616,8 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 			let outDir = header.outDir;
 			for (let module in data) {
 				const fileContent = data[module];
-				getXlf().addFile(`${outDir}/${module}`, fileContent.keys, fileContent.messages);
+				// in the XLF files we only use forward slashes.
+				getXlf().addFile(`${outDir}/${module.replace(/\\/g, '/')}`, fileContent.keys, fileContent.messages);
 			}
 		}
 		if (_xlf) {
@@ -769,7 +770,7 @@ function updateResource(project: string, slug: string, xlfFile: File, apiHostnam
 
 /**
  * Fetches a Xlf file from transifex. Returns a file stream with paths `${project}/${slug}.xlf`
- * 
+ *
  * @param apiHostname The hostname, e.g. www.transifex.com
  * @param username The user name, e.g. api
  * @param password The password or access token
@@ -811,7 +812,7 @@ function retrieveResource(language: Language, resource: Resource, apiHostname, c
 	return new Promise<File>((resolve, reject) => {
 		const slug = resource.name.replace(/\//g, '_');
 		const project = resource.project;
-		const transifexLanguageId = language.transifexId || language.id;		
+		const transifexLanguageId = language.transifexId || language.id;
 		const options = {
 			hostname: apiHostname,
 			path: `/api/2/project/${project}/resource/${slug}/translation/${transifexLanguageId}?file&mode=onlyreviewed`,
