@@ -423,15 +423,15 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 	function isPropertyAccessExpression(node: ts.Node): node is ts.PropertyAccessExpression {
 		return node && node.kind === ts.SyntaxKind.PropertyAccessExpression;
 	}
-	
+
 	function isStringLiteral(node: ts.Node): node is ts.StringLiteral {
 		return node && node.kind === ts.SyntaxKind.StringLiteral;
 	}
-	
+
 	function isObjectLiteral(node: ts.Node): node is ts.ObjectLiteralExpression {
 		return node && node.kind === ts.SyntaxKind.ObjectLiteralExpression;
 	}
-	
+
 	function isArrayLiteralExpression(node: ts.Node): node is ts.ArrayLiteralExpression {
 		return node && node.kind === ts.SyntaxKind.ArrayLiteralExpression;
 	}
@@ -439,7 +439,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 	function isPropertyAssignment(node: ts.Node): node is ts.PropertyAssignment {
 		return node && node.kind === ts.SyntaxKind.PropertyAssignment;
 	}
-	
+
 	const unescapeMap: Map<string> = {
 		'\'': '\'',
 		'"': '"',
@@ -450,7 +450,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 		'b': '\b',
 		'f': '\f'
 	};
-	
+
 	function unescapeString(str: string): string {
 		var result: string[] = [];
 		for (let i = 0; i < str.length; i++) {
@@ -469,7 +469,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 		}
 		return result.join('');
 	}
-	
+
 	options = clone(options, false);
 	options.noResolve = true;
 	options.allowJs = true;
@@ -541,7 +541,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 							memo.push(parent);
 						} else {
 							let position = ts.getLineAndCharacterOfPosition(sourceFile, node.pos);
-							errors.push(`(${position.line + 1},${position.character + 1}): localize function (bound to ${node.text}) used in an unusal way.`);
+							errors.push(`(${position.line + 1},${position.character + 1}): localize function (bound to ${node.text}) used in an unusual way.`);
 						}
 					}
 				}
@@ -599,7 +599,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 		}
 		if (!key) {
 			let position = ts.getLineAndCharacterOfPosition(sourceFile, firstArg.pos);
-			errors.push(`(${position.line + 1},${position.character + 1}): first argument of a localize call must either be a string literal a object literal of type LocalizeInfo.`);
+			errors.push(`(${position.line + 1},${position.character + 1}): first argument of a localize call must either be a string literal or an object literal of type LocalizeInfo.`);
 			return memo;
 		}
 		if (isStringLiteral(secondArg)) {
@@ -628,7 +628,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 			});
 		} else {
 			bundle.keys.push(key);
-		}		
+		}
 		messageIndex++;
 		return memo;
 	}, { patches });
@@ -656,12 +656,12 @@ export function processFile(contents: string, sourceMap?: string | RawSourceMap)
 		try {
 			rawSourceMap = JSON.parse(sourceMap);
 		} catch (e) {
-			
+
 		}
 	} else if (sourceMap) {
 		rawSourceMap = sourceMap;
 	}
-	
+
 	const textModel = new TextModel(contents, rawSourceMap);
 	textModel.apply(analysisResult.patches);
 
@@ -716,7 +716,7 @@ export function resolveMessageBundle(bundle: JavaScriptMessageBundle | PackageJs
 			keys.push(resolvedKey);
 			map[resolvedKey] = bundle.messages[index];
 		});
-		return { messages: bundle.messages, keys: keys, map };		
+		return { messages: bundle.messages, keys: keys, map };
 	} else {
 		return bundle;
 	}
@@ -729,10 +729,10 @@ export interface LocalizedMessagesResult {
 
 export function createLocalizedMessages(filename: string, bundle: ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle, languageFolderName: string, i18nBaseDir: string, baseDir?: string): LocalizedMessagesResult {
 	let problems: string[] = [];
-	let i18nFile = (baseDir 
+	let i18nFile = (baseDir
 		? path.join(i18nBaseDir, languageFolderName, baseDir, filename)
 		: path.join(i18nBaseDir, languageFolderName, filename)) + '.i18n.json';
-		
+
 	let messages: Map<string>;
 	let bundleLength = ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length;
 	if (fs.existsSync(i18nFile)) {
@@ -766,26 +766,26 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 
 export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, commentSeparator: string = undefined): any {
 	let result = Object.create(null);
-	
+
 	for(var i=0; i < bundle.messages.length; ++i) {
 		let key: string;
 		let comments: string[];
 		let message: string = bundle.messages[i];
 		let keyInfo = bundle.keys[i];
-		
+
 		if (LocalizeInfo.is(keyInfo)) {
 			key = keyInfo.key;
 			comments = keyInfo.comment;
 		} else {
 			key = keyInfo;
 		}
-		
+
 		if (key in result) {
 			throw new Error(`The following key is duplicated: "${key}". Please use unique keys.`);
 		}
-		
+
 		result[key] = bundle.messages[i];
-		
+
 		if (comments) {
 			if (commentSeparator) {
 				result[`_${key}.comments`] = comments.join(commentSeparator);
@@ -794,6 +794,6 @@ export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, commentSepa
 			}
 		}
 	}
-	
+
 	return result;
 }

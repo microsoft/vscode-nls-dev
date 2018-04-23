@@ -93,7 +93,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 			let metaDataFile: File;
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file.relative}${error}`));
-				this.emit('error', `Failed to rewite file: ${file.relative}`);
+				this.emit('error', `Failed to rewrite file: ${file.path}`);
 				return;
 			} else {
 				if (result.contents) {
