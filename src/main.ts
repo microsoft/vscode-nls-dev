@@ -77,7 +77,7 @@ function removePathPrefix(path: string, prefix: string): string {
 	}
 }
 
-export function rewriteLocalizeCalls(): ThroughStream {
+export function rewriteLocalizeCalls(opts: { keepFilenames?: boolean } = {}): ThroughStream {
 	return through(
 		function (this: ThroughStream, file: FileWithSourceMap) {
 			if (!file.isBuffer()) {
@@ -88,7 +88,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 			let content = buffer.toString('utf8');
 			let sourceMap = file.sourceMap;
 
-			let result = processFile(content, sourceMap);
+			let result = processFile(content, opts.keepFilenames && file.relative, sourceMap);
 			let messagesFile: File;
 			let metaDataFile: File;
 			if (result.errors && result.errors.length > 0) {
