@@ -88,7 +88,8 @@ export function rewriteLocalizeCalls(opts: { keepFilenames?: boolean } = {}): Th
 			let content = buffer.toString('utf8');
 			let sourceMap = file.sourceMap;
 
-			let result = processFile(content, opts.keepFilenames && file.relative, sourceMap);
+			let relativeFileName = opts.keepFilenames ? file.relative : undefined;
+			let result = processFile(content, relativeFileName, sourceMap);
 			let messagesFile: File;
 			let metaDataFile: File;
 			if (result.errors && result.errors.length > 0) {
