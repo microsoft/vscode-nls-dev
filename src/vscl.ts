@@ -27,11 +27,16 @@ let argv = yargs
 		describe: 'The root directory of the sources. Only honored when outDir is set.',
 		demand: false
 	})
+	.option('keepFilenames', {
+		describe: 'Inlines filenames when making localization calls. Only honored when rootDir is set.',
+		demand: false
+	})
 	.argv;
 
 let hasError: boolean = false;
 let outDir = argv.outDir ? path.resolve(argv.outDir) : null;
 let rootDir = argv.rootDir ? path.resolve(argv.rootDir) : null;
+let keepFilenames = Boolean(argv.keepFilenames);
 
 argv._.forEach(element => {
 	glob(element, (err, matches) => {
@@ -67,7 +72,10 @@ argv._.forEach(element => {
 					sourceMapContent = fs.readFileSync(resolvedSourceMapFile, 'utf8');
 				}
 			}
-			let result = processFile(contents, sourceMapContent);
+
+			let relativeFilename = keepFilenames && rootDir ? path.relative(rootDir, resolvedFile) : undefined;
+			let result = processFile(contents, relativeFilename, sourceMapContent);
+			
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file}${error}`));
 				hasError = true;

@@ -347,7 +347,7 @@ class TextModel {
 	}
 }
 
-function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisResult {
+function analyze(contents: string, relativeFilename: string, options: ts.CompilerOptions = {}): AnalysisResult {
 
 	const vscodeRegExp = /^\s*(["'])vscode-nls\1\s*$/;
 
@@ -555,7 +555,7 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 			let args = loadCall.arguments;
 			patches.push({
 				span: { start: ts.getLineAndCharacterOfPosition(sourceFile, args.pos), end: ts.getLineAndCharacterOfPosition(sourceFile, args.end) },
-				content: '__filename',
+				content: relativeFilename ? `require('path').join(__dirname, '${relativeFilename}')` : '__filename',
 			});
 		}
 		return memo;
@@ -640,9 +640,9 @@ function analyze(contents: string, options: ts.CompilerOptions = {}): AnalysisRe
 	};
 }
 
-export function processFile(contents: string, sourceMap?: string | RawSourceMap): { contents: string, sourceMap: string, bundle: JavaScriptMessageBundle, errors: string[] } {
+export function processFile(contents: string, relativeFileName: string, sourceMap?: string | RawSourceMap): { contents: string, sourceMap: string, bundle: JavaScriptMessageBundle, errors: string[] } {
 
-	const analysisResult = analyze(contents);
+	const analysisResult = analyze(contents, relativeFileName);
 	if (analysisResult.patches.length === 0) {
 		return {
 			contents: undefined,

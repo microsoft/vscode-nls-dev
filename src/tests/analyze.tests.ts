@@ -23,7 +23,7 @@ describe('Localize', () => {
 			"localize(0, null, 'Hello', 'World');",
 			"//# sourceMappingURL=test.js.map"
 		];
-		let result = nlsDev.processFile(code.join('\r\n'), sourceMap);
+		let result = nlsDev.processFile(code.join('\r\n'), undefined, sourceMap);
 
 		assert.strictEqual(result.contents, expected.join('\r\n'));
 		assert.strictEqual(result.sourceMap, '{"version":3,"sources":["test.ts"],"names":[],"mappings":"AAAA,IAAY,GAAG,WAAM,YAAY,CAAC,CAAA;AAClC,IAAI,QAAQ,GAAG,GAAG,CAAC,MAAM,CAAC,EAAE,MAAM,EAAE,OAAO,EAAE,KAAK,EAAE,IAAI,EAAE,CAAC,YAAE,CAAC;AAC9D,QAAQ,CAAC,aAAyB,EAAE,OAAO,CAAC,CAAC","sourceRoot":""}');
@@ -53,7 +53,7 @@ describe('Localize', () => {
 			"localize(0, null, 'Hello', 'World');",
 			"//# sourceMappingURL=test.js.map"
 		];
-		let result = nlsDev.processFile(code.join('\r\n'), sourceMap);
+		let result = nlsDev.processFile(code.join('\r\n'), undefined, sourceMap);
 		assert.strictEqual(result.contents, expected.join('\r\n'));
 		assert.strictEqual(result.sourceMap, '{"version":3,"sources":["test.ts"],"names":[],"mappings":"AAAA,IAAY,GAAG,WAAM,YAAY,CAAC,CAAA;AAClC,IAAI,QAAQ,GAAG,GAAG,CAAC,MAAM,CAAC,EAAE,MAAM,EAAE,OAAO,EAAE,KAAK,EAAE,IAAI,EAAE,CAAC,YAAE,CAAC;AAC9D,QAAQ,CAAC,CAGR,EAAE,IAAS,EAAE,OAAO,EAAE,OAAO,CAAC,CAAC","sourceRoot":""}');
 		assert.deepStrictEqual(result.bundle, {
@@ -74,10 +74,25 @@ describe('Localize', () => {
 			"var localize = nls.loadMessageBundle();",
 			"localize('keyOne', '{0} {1}', 'Hello', 'World');"
 		];
-		let result = nlsDev.processFile(code.join('\n'));
+		let result = nlsDev.processFile(code.join('\n'), undefined);
 		let expected: string[] = [
 			"var nls = require('vscode-nls');",
 			"var localize = nls.loadMessageBundle(__filename);",
+			"localize(0, null, 'Hello', 'World');"
+		];
+		assert.strictEqual(result.contents, expected.join('\n'));
+	})
+
+	it('keepFilename', () => {
+		let code: string[] = [
+			"var nls = require('vscode-nls');",
+			"var localize = nls.loadMessageBundle();",
+			"localize('keyOne', '{0} {1}', 'Hello', 'World');"
+		];
+		let result = nlsDev.processFile(code.join('\n'), 'foo.js');
+		let expected: string[] = [
+			"var nls = require('vscode-nls');",
+			"var localize = nls.loadMessageBundle(require('path').join(__dirname, 'foo.js'));",
 			"localize(0, null, 'Hello', 'World');"
 		];
 		assert.strictEqual(result.contents, expected.join('\n'));
