@@ -13,7 +13,7 @@ import { relative } from "path";
  */
 module.exports = function (content, map, meta) {
 	const callback = this.async();
-	const relativePath = relative(this.resourcePath, this.context);
+	const relativePath = relative(this.context, this.resourcePath);
 	const result = processFile(content, relativePath, map);
 	if (result.errors && result.errors.length > 0) {
 		// error
