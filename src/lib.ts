@@ -555,7 +555,7 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 			let args = loadCall.arguments;
 			patches.push({
 				span: { start: ts.getLineAndCharacterOfPosition(sourceFile, args.pos), end: ts.getLineAndCharacterOfPosition(sourceFile, args.end) },
-				content: relativeFilename ? `require('path').join(__dirname, '${relativeFilename}')` : '__filename',
+				content: relativeFilename ? `require('path').join(__dirname, '${relativeFilename.replace(/\\/g, '\\\\')}')` : '__filename',
 			});
 		}
 		return memo;

@@ -97,4 +97,19 @@ describe('Localize', () => {
 		];
 		assert.strictEqual(result.contents, expected.join('\n'));
 	})
+
+	it('https://github.com/Microsoft/vscode/issues/56792', () => {
+		let code: string[] = [
+			"var nls = require('vscode-nls');",
+			"var localize = nls.loadMessageBundle();",
+			"localize('keyOne', '{0} {1}', 'Hello', 'World');"
+		];
+		let result = nlsDev.processFile(code.join('\n'), 'bar\\foo.js');
+		let expected: string[] = [
+			"var nls = require('vscode-nls');",
+			"var localize = nls.loadMessageBundle(require('path').join(__dirname, 'bar\\\\foo.js'));",
+			"localize(0, null, 'Hello', 'World');"
+		];
+		assert.strictEqual(result.contents, expected.join('\n'));
+	})
 });
