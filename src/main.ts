@@ -4,22 +4,18 @@
  * ------------------------------------------------------------------------------------------ */
 'use strict';
 
-import * as path from 'path';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
-
-import File = require('vinyl');
-import { KeyInfo, JavaScriptMessageBundle, processFile, resolveMessageBundle, createLocalizedMessages, bundle2keyValuePair, Map } from './lib';
-import { through, readable } from 'event-stream';
-import { ThroughStream as _ThroughStream } from 'through';
-import * as Is from 'is';
-import * as xml2js from 'xml2js';
-import * as glob from 'glob';
+import { readable, through } from 'event-stream';
 import * as https from 'https';
+import * as Is from 'is';
+import * as path from 'path';
+import { ThroughStream as _ThroughStream } from 'through';
 import { isString } from 'util';
-
+import * as xml2js from 'xml2js';
+import { bundle2keyValuePair, createLocalizedMessages, JavaScriptMessageBundle, KeyInfo, Map, processFile, resolveMessageBundle } from './lib';
+import File = require('vinyl');
 var util = require('gulp-util');
-var iconv = require('iconv-lite');
+
 
 function log(message: any, ...rest: any[]): void {
 	util.log(util.colors.cyan('[i18n]'), message, ...rest);

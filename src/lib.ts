@@ -4,12 +4,10 @@
  * ------------------------------------------------------------------------------------------ */
 'use strict';
 
-import * as path from 'path';
 import * as fs from 'fs';
-
+import * as path from 'path';
+import { MappingItem as BaseMappingItem, RawSourceMap, SourceMapConsumer, SourceMapGenerator } from 'source-map';
 import * as ts from 'typescript';
-import { RawSourceMap, SourceMapConsumer, SourceMapGenerator, MappingItem as BaseMappingItem } from 'source-map';
-
 import clone = require('clone');
 
 export interface Map<V> {
