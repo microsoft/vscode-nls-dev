@@ -163,7 +163,7 @@ class TextModel {
 		this.lines = [];
 
 		while (match = regex.exec(contents)) {
-			this.lines.push({ content: contents.substring(index, match.index), ending: match[0], mappings: null});
+			this.lines.push({ content: contents.substring(index, match.index), ending: match[0], mappings: null });
 			index = regex.lastIndex;
 		}
 
@@ -195,7 +195,7 @@ class TextModel {
 	 * Does not support patches spanning multiple lines.
 	 */
 	public apply(patches: Patch[]): void {
-		if (patches.length === 0){
+		if (patches.length === 0) {
 			return;
 		}
 
@@ -258,7 +258,7 @@ class TextModel {
 					let delta = patch.content.length - (patch.span.end.character - patch.span.start.character);
 					let mappingItem: MappingItem = null;
 					while ((mappingItem = mappingCursor.index !== -1 ? startLine.mappings[mappingCursor.index] : null) != null
-							&&  mappingItem.generatedColumn > patch.span.start.character) {
+						&& mappingItem.generatedColumn > patch.span.start.character) {
 						if (mappingItem.generatedColumn < patch.span.end.character) {
 							// The patch covers the source mapping. Delete it
 							mappingItem.delete = true;
@@ -268,10 +268,10 @@ class TextModel {
 					// Record the delta on the first source marker after the patch.
 					if (mappingCursor.index + 1 < startLine.mappings.length) {
 						let mapping = startLine.mappings[mappingCursor.index + 1];
-						mapping.columnDelta = (mapping.columnDelta || 0)  + delta;
+						mapping.columnDelta = (mapping.columnDelta || 0) + delta;
 					}
 				} else {
-					let startLineMappings =  startLine.mappings;
+					let startLineMappings = startLine.mappings;
 					if (startLineMappings) {
 						for (let i = startLineMappings.length - 1; i >= 0 && startLineMappings[i].generatedColumn > patch.span.start.character; i--) {
 							startLineMappings[i].delete = true;
@@ -310,7 +310,7 @@ class TextModel {
 		if (!this.rawSourceMap) {
 			return undefined;
 		}
-		let sourceMapGenerator = new SourceMapGenerator({ sourceRoot: this.rawSourceMap.sourceRoot});
+		let sourceMapGenerator = new SourceMapGenerator({ sourceRoot: this.rawSourceMap.sourceRoot });
 		let lineDelta = 0;
 		this.lines.forEach(line => {
 			let mappings = line.mappings;
@@ -500,7 +500,7 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 			}
 		}
 		return memo;
-	},[]);
+	}, []);
 
 	const loadCalls = nlsReferences.reduce<ts.CallExpression[]>((memo, node) => {
 		// We are looking for nls.loadMessageBundle || nls.config. In the AST
@@ -690,7 +690,7 @@ function stripComments(content: string): string {
 			// A line comment. If it ends in \r?\n then keep it.
 			let length = m4.length;
 			if (length > 2 && m4[length - 1] === '\n') {
-				return m4[length - 2] === '\r' ? '\r\n': '\n';
+				return m4[length - 2] === '\r' ? '\r\n' : '\n';
 			} else {
 				return '';
 			}
@@ -767,7 +767,7 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, commentSeparator: string = undefined): any {
 	let result = Object.create(null);
 
-	for(var i=0; i < bundle.messages.length; ++i) {
+	for (var i = 0; i < bundle.messages.length; ++i) {
 		let key: string;
 		let comments: string[];
 		let message: string = bundle.messages[i];

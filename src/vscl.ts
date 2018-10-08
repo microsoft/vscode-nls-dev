@@ -48,11 +48,11 @@ argv._.forEach(element => {
 		matches.forEach(file => {
 			let resolvedFile = path.resolve(file);
 			let contents: string = fs.readFileSync(resolvedFile, 'utf8');
-			
+
 			let sourceMapFile: string = null;
 			let resolvedSourceMapFile: string = null;
 			let sourceMapContent: string = undefined;
-			
+
 			let sourceMapMatches = contents.match(/\/\/#\s+sourceMappingURL=(.*)(?:\r?\n|\n|$)/);
 			if (sourceMapMatches && sourceMapMatches.length === 2) {
 				let sourceMapUrl = url.parse(sourceMapMatches[1]);
@@ -75,7 +75,7 @@ argv._.forEach(element => {
 
 			let relativeFilename = keepFilenames && rootDir ? path.relative(rootDir, resolvedFile) : undefined;
 			let result = processFile(contents, relativeFilename, sourceMapContent);
-			
+
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file}${error}`));
 				hasError = true;

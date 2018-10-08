@@ -19,7 +19,7 @@ import * as https from 'https';
 import { isString } from 'util';
 
 var util = require('gulp-util');
-var iconv  = require('iconv-lite');
+var iconv = require('iconv-lite');
 
 function log(message: any, ...rest: any[]): void {
 	util.log(util.colors.cyan('[i18n]'), message, ...rest);
@@ -133,7 +133,7 @@ export function rewriteLocalizeCalls(opts: { keepFilenames?: boolean } = {}): Th
 export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 	let base: string = undefined;
 	let content: BundledMetaDataFile = Object.create(null);
-	return through(function(this: ThroughStream, file: File) {
+	return through(function (this: ThroughStream, file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
 			this.queue(file);
@@ -156,7 +156,7 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 			messages: json.messages,
 			keys: json.keys
 		};
-	}, function() {
+	}, function () {
 		if (base) {
 			// We use md5 since we only need a finger print.
 			// The actual data is public and put into a file.
@@ -208,7 +208,7 @@ export interface Language {
 }
 
 export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string): ThroughStream {
-	return through(function(this: ThroughStream, file: File) {
+	return through(function (this: ThroughStream, file: File) {
 		// Queue the original file again.
 		this.queue(file);
 
@@ -239,7 +239,7 @@ export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir
 						contents: new Buffer(JSON.stringify(result.messages, null, '\t').replace(/\r\n/g, '\n'), 'utf8')
 					}));
 				}
- 			});
+			});
 		} else {
 			this.emit('error', `Failed to read component file: ${file.relative}`);
 			return;
@@ -261,7 +261,7 @@ export function bundleLanguageFiles(): through.ThroughStream {
 		return relativeFile.match(/(.*)\.nls\.(?:.*\.)?json/)[1].replace(/\\/g, '/');
 	}
 
-	return through(function(this: ThroughStream, file: File) {
+	return through(function (this: ThroughStream, file: File) {
 		let basename = path.basename(file.path);
 		let matches = basename.match(/.nls\.(?:(.*)\.)?json/);
 		if (!matches || !file.isBuffer()) {
@@ -279,7 +279,7 @@ export function bundleLanguageFiles(): through.ThroughStream {
 			bundles[language] = bundle;
 		}
 		bundle.content[getModuleKey(file.relative)] = JSON.parse((file.contents as Buffer).toString('utf8'));
-	}, function() {
+	}, function () {
 		for (let language in bundles) {
 			let bundle = bundles[language];
 			let languageId = language === 'en' ? '' : `${language}.`;
@@ -308,7 +308,7 @@ export function debug(prefix: string = ''): through.ThroughStream {
  *  the commentSeparator value. If omitted comments will be includes as a string array.
  */
 export function createKeyValuePairFile(commentSeparator: string = undefined): through.ThroughStream {
-	return through(function(this: ThroughStream, file: File) {
+	return through(function (this: ThroughStream, file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
 			this.queue(file);
@@ -449,7 +449,7 @@ export class XLF {
 			for (let item of this.files[file]) {
 				this.addStringItem(item);
 			}
-	   		this.appendNewLine('</body></file>', 2);
+			this.appendNewLine('</body></file>', 2);
 		}
 
 		this.appendFooter();
@@ -520,13 +520,13 @@ export class XLF {
 		this.buffer.push(line.toString());
 	}
 
-	static parse = function(xlfString: string) : Promise<ParsedXLF[]> {
+	static parse = function (xlfString: string): Promise<ParsedXLF[]> {
 		return new Promise((resolve, reject) => {
 			let parser = new xml2js.Parser();
 
 			let files: { messages: Map<string>, originalFilePath: string, language: string }[] = [];
 
-			parser.parseString(xlfString, function(err, result) {
+			parser.parseString(xlfString, function (err, result) {
 				if (err) {
 					reject(new Error(`Failed to parse XLIFF string. ${err}`));
 				}
@@ -583,7 +583,7 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 		}
 		return _xlf;
 	}
-	return through(function(this: ThroughStream, file: File) {
+	return through(function (this: ThroughStream, file: File) {
 		if (!file.isBuffer()) {
 			this.emit('error', `File ${file.path} is not a buffer`);
 			return;
@@ -612,7 +612,7 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 			this.emit('error', new Error(`${file.path} is not a valid nls or meta data file`));
 			return;
 		}
-	}, function(this: ThroughStream) {
+	}, function (this: ThroughStream) {
 		if (header && data) {
 			let outDir = header.outDir;
 			for (let module in data) {
@@ -636,7 +636,7 @@ export function pushXlfFiles(apiHostname: string, username: string, password: st
 	let tryGetPromises = [];
 	let updateCreatePromises = [];
 
-	return through(function(this: ThroughStream, file: File) {
+	return through(function (this: ThroughStream, file: File) {
 		const project = path.dirname(file.relative);
 		const fileName = path.basename(file.path);
 		const slug = fileName.substr(0, fileName.length - '.xlf'.length);
@@ -654,7 +654,7 @@ export function pushXlfFiles(apiHostname: string, username: string, password: st
 			updateCreatePromises.push(promise);
 		});
 
-	}, function() {
+	}, function () {
 		// End the pipe only after all the communication with Transifex API happened
 		Promise.all(tryGetPromises).then(() => {
 			Promise.all(updateCreatePromises).then(() => {
@@ -729,7 +729,7 @@ function createResource(project: string, slug: string, xlfFile: File, apiHostnam
  * The following link provides information about how Transifex handles updates of a resource file:
  * https://dev.befoolish.co/tx-docs/public/projects/updating-content#what-happens-when-you-update-files
  */
-function updateResource(project: string, slug: string, xlfFile: File, apiHostname: string, credentials: string) : Promise<any> {
+function updateResource(project: string, slug: string, xlfFile: File, apiHostname: string, credentials: string): Promise<any> {
 	return new Promise((resolve, reject) => {
 		const data = JSON.stringify({ content: xlfFile.contents.toString() });
 		const options = {
@@ -787,7 +787,7 @@ export function pullXlfFiles(apiHostname: string, username: string, password: st
 	let expectedTranslationsCount = resources.length;
 	let translationsRetrieved = 0, called = false;
 
-	return readable(function(count, callback) {
+	return readable(function (count, callback) {
 		// Mark end of stream when all resources were retrieved
 		if (translationsRetrieved === expectedTranslationsCount) {
 			return this.emit('end');
@@ -797,7 +797,7 @@ export function pullXlfFiles(apiHostname: string, username: string, password: st
 			called = true;
 			const stream = this;
 
-			resources.map(function(resource) {
+			resources.map(function (resource) {
 				retrieveResource(language, resource, apiHostname, credentials).then((file: File) => {
 					stream.emit('data', file);
 					translationsRetrieved++;
@@ -822,14 +822,14 @@ function retrieveResource(language: Language, resource: Resource, apiHostname, c
 		};
 
 		let request = https.request(options, (res) => {
-				let xlfBuffer: Buffer[] = [];
-				res.on('data', (chunk) => xlfBuffer.push(<Buffer>chunk));
-				res.on('end', () => {
-					if (res.statusCode === 200) {
-						resolve(new File({ contents: Buffer.concat(xlfBuffer), path: `${project}/${slug}.xlf` }));
-					}
-					reject(`${slug} in ${project} returned no data. Response code: ${res.statusCode}.`);
-				});
+			let xlfBuffer: Buffer[] = [];
+			res.on('data', (chunk) => xlfBuffer.push(<Buffer>chunk));
+			res.on('end', () => {
+				if (res.statusCode === 200) {
+					resolve(new File({ contents: Buffer.concat(xlfBuffer), path: `${project}/${slug}.xlf` }));
+				}
+				reject(`${slug} in ${project} returned no data. Response code: ${res.statusCode}.`);
+			});
 		});
 		request.on('error', (err) => {
 			reject(`Failed to query resource ${slug} with the following error: ${err}`);
@@ -841,13 +841,13 @@ function retrieveResource(language: Language, resource: Resource, apiHostname, c
 export function prepareJsonFiles(): ThroughStream {
 	let parsePromises: Promise<ParsedXLF[]>[] = [];
 
-	return through(function(this: ThroughStream, xlf: File) {
+	return through(function (this: ThroughStream, xlf: File) {
 		let stream = this;
 		let parsePromise = XLF.parse(xlf.contents.toString());
 		parsePromises.push(parsePromise);
 
 		parsePromise.then(
-			function(resolvedFiles) {
+			function (resolvedFiles) {
 				resolvedFiles.forEach(file => {
 					let messages = file.messages, translatedFile;
 					translatedFile = createI18nFile(file.originalFilePath, messages);
@@ -855,7 +855,7 @@ export function prepareJsonFiles(): ThroughStream {
 				});
 			}
 		);
-	}, function() {
+	}, function () {
 		Promise.all(parsePromises)
 			.then(() => { this.queue(null); })
 			.catch(reason => { throw new Error(reason); })
@@ -898,6 +898,6 @@ function encodeEntities(value: string): string {
 	return result.join('');
 }
 
-function decodeEntities(value:string): string {
+function decodeEntities(value: string): string {
 	return value.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }

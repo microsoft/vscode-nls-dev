@@ -23,7 +23,7 @@ describe('XLF Parser Tests', () => {
 	});
 
 	it('XLF to keys & messages conversion', () => {
-		i18n.XLF.parse(sampleTranslatedXlf).then(function(resolvedFiles) {
+		i18n.XLF.parse(sampleTranslatedXlf).then(function (resolvedFiles) {
 			assert.deepEqual(resolvedFiles[0].messages, translatedMessages);
 			assert.strictEqual(resolvedFiles[0].originalFilePath, originalFilePath);
 		});
