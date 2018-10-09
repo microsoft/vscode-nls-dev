@@ -73,7 +73,7 @@ function removePathPrefix(path: string, prefix: string): string {
 	}
 }
 
-export function rewriteLocalizeCalls(opts: { keepFilenames?: boolean } = {}): ThroughStream {
+export function rewriteLocalizeCalls(): ThroughStream {
 	return through(
 		function (this: ThroughStream, file: FileWithSourceMap) {
 			if (!file.isBuffer()) {
@@ -84,8 +84,7 @@ export function rewriteLocalizeCalls(opts: { keepFilenames?: boolean } = {}): Th
 			let content = buffer.toString('utf8');
 			let sourceMap = file.sourceMap;
 
-			let relativeFileName = opts.keepFilenames ? file.relative : undefined;
-			let result = processFile(content, relativeFileName, sourceMap);
+			let result = processFile(content, undefined, sourceMap);
 			let messagesFile: File;
 			let metaDataFile: File;
 			if (result.errors && result.errors.length > 0) {
@@ -121,6 +120,44 @@ export function rewriteLocalizeCalls(opts: { keepFilenames?: boolean } = {}): Th
 			}
 			if (metaDataFile) {
 				this.queue(metaDataFile);
+			}
+		}
+	);
+}
+
+export function createMetaDataFiles(): ThroughStream {
+	return through(
+		function (this: ThroughStream, file: FileWithSourceMap) {
+			if (!file.isBuffer()) {
+				this.emit('error', `Failed to read file: ${file.relative}`);
+				return;
+			}
+
+			let result = processFile(file.contents.toString('utf8'), undefined, undefined);
+			if (result.errors && result.errors.length > 0) {
+				result.errors.forEach(error => console.error(`${file.relative}${error}`));
+				this.emit('error', `Failed to rewrite file: ${file.path}`);
+				return;
+			}
+
+			// emit the input file as-is
+			this.queue(file);
+
+			// emit nls meta data if available
+			if (result.bundle) {
+				let ext = path.extname(file.path);
+				let filePath = file.path.substr(0, file.path.length - ext.length);
+				this.queue(new File({
+					base: file.base,
+					path: filePath + NLS_JSON,
+					contents: new Buffer(JSON.stringify(result.bundle.messages, null, '\t'), 'utf8')
+				}));
+				let metaDataContent: SingleMetaDataFile = Object.assign({}, result.bundle, { filePath: removePathPrefix(filePath, file.base) });
+				this.queue(new File({
+					base: file.base,
+					path: filePath + NLS_METADATA_JSON,
+					contents: new Buffer(JSON.stringify(metaDataContent, null, '\t'), 'utf8')
+				}));
 			}
 		}
 	);
