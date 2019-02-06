@@ -14,11 +14,12 @@ import { isString } from 'util';
 import * as xml2js from 'xml2js';
 import { bundle2keyValuePair, createLocalizedMessages, JavaScriptMessageBundle, KeyInfo, Map, processFile, resolveMessageBundle } from './lib';
 import File = require('vinyl');
-var util = require('gulp-util');
+import * as fancyLog from 'fancy-log';
+import * as ansiColors from 'ansi-colors';
 
 
 function log(message: any, ...rest: any[]): void {
-	util.log(util.colors.cyan('[i18n]'), message, ...rest);
+	fancyLog(ansiColors.cyan('[i18n]'), message, ...rest);
 }
 
 interface FileWithSourceMap extends File {
