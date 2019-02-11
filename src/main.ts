@@ -186,7 +186,7 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 		}
 		let buffer: Buffer = file.contents as Buffer;
 		let json: SingleMetaDataFile = JSON.parse(buffer.toString('utf8'));
-		content[json.filePath] = {
+		content[json.filePath.replace(/\\/g, '/')] = {
 			messages: json.messages,
 			keys: json.keys
 		};
