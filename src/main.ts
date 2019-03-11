@@ -554,7 +554,19 @@ export class XLF {
 		this.buffer.push(line.toString());
 	}
 
-	static parse = function (xlfString: string): Promise<ParsedXLF[]> {
+	static parse(xlfString: string): Promise<ParsedXLF[]> {
+		const getValue = function(this:void, target: any): string | undefined {
+			if (typeof target === 'string') {
+				return target;
+			}
+			if (typeof target._ === 'string') {
+				return target._;
+			}
+			if (Array.isArray(target) && target.length === 1 && typeof target[0]._ === 'string') {
+				return target[0]._;
+			}
+			return undefined;
+		}
 		return new Promise((resolve, reject) => {
 			let parser = new xml2js.Parser();
 
@@ -589,7 +601,7 @@ export class XLF {
 								return; // No translation available
 							}
 
-							const val = unit.target.toString();
+							const val = getValue(unit.target);
 							if (key && val) {
 								messages[key] = decodeEntities(val);
 							} else {
