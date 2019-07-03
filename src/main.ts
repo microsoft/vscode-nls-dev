@@ -562,7 +562,14 @@ export class XLF {
 			if (typeof target._ === 'string') {
 				return target._;
 			}
-			if (Array.isArray(target) && target.length === 1 && typeof target[0]._ === 'string') {
+			if (Array.isArray(target) && target.length === 1) {
+				let item = target[0];
+				if (typeof item === 'string') {
+					return item;
+				}
+				if (typeof item._ === 'string') {
+					return item._
+				}
 				return target[0]._;
 			}
 			return undefined;
