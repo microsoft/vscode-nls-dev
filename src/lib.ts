@@ -9,6 +9,7 @@ import * as path from 'path';
 import { MappingItem as BaseMappingItem, RawSourceMap, SourceMapConsumer, SourceMapGenerator } from 'source-map';
 import * as ts from 'typescript';
 import clone = require('clone');
+import * as crypto from 'crypto';
 
 export interface Map<V> {
 	[key: string]: V;
@@ -794,4 +795,87 @@ export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, commentSepa
 	}
 
 	return result;
+}
+
+export function removePathPrefix(path: string, prefix: string): string {
+	if (!prefix) {
+		return path;
+	}
+	if (!path.startsWith(prefix)) {
+		return path;
+	}
+	let ch = prefix.charAt(prefix.length - 1);
+
+	if (ch === '/' || ch === '\\') {
+		return path.substr(prefix.length);
+	} else {
+		return path.substr(prefix.length + 1);
+	}
+}
+
+
+export interface SingleMetaDataFile {
+	messages: string[];
+	keys: KeyInfo[];
+	filePath: string;
+}
+
+export interface BundledMetaDataEntry {
+	messages: string[];
+	keys: KeyInfo[];
+}
+
+export interface BundledMetaDataHeader {
+	id: string;
+	type: string;
+	hash: string;
+	outDir: string;
+}
+
+export interface BundledMetaDataFile {
+	[key: string]: BundledMetaDataEntry;
+}
+
+export class MetaDataBundler {
+
+	private content: BundledMetaDataFile = Object.create(null);
+
+	constructor(private id: string, private outDir: string) { }
+
+	add(file: SingleMetaDataFile) {
+		this.content[file.filePath.replace(/\\/g, '/')] = { messages: file.messages, keys: file.keys };
+	}
+
+	bundle(): [BundledMetaDataHeader, BundledMetaDataFile] {
+		// We use md5 since we only need a finger print.
+		// The actual data is public and put into a file.
+		// Since the hash is used as a file name in the file
+		// system md5 shortens the name and therfore the path
+		// especially under Windows (max path issue).
+		let md5 = crypto.createHash('md5');
+		let keys = Object.keys(this.content).sort();
+		for (let key of keys) {
+			md5.update(key);
+			let entry: BundledMetaDataEntry = this.content[key];
+			for (let keyInfo of entry.keys) {
+				if (isString(keyInfo)) {
+					md5.update(keyInfo);
+				} else {
+					md5.update(keyInfo.key)
+				}
+			}
+			for (let message of entry.messages) {
+				md5.update(message);
+			}
+		}
+		let hash = md5.digest('hex');
+		let header: BundledMetaDataHeader = {
+			id: this.id,
+			type: "extensionBundle",
+			hash,
+			outDir: this.outDir
+		};
+
+		return [header, this.content];
+	}
 }

@@ -6,7 +6,8 @@
 'use strict';
 
 import { relative } from "path";
-import { processFile } from "./lib";
+import { processFile, removePathPrefix } from "./lib";
+import * as path from 'path';
 
 /**
  * A [webpack loader](https://webpack.js.org/api/loaders/) that rewrite nls-calls.
@@ -17,10 +18,23 @@ module.exports = function (content, map, meta) {
 	const callback = this.async();
 	const relativePath = relative(this.query.base, this.resourcePath);
 	const result = processFile(content, relativePath, map);
+
 	if (result.errors && result.errors.length > 0) {
 		// error
 		callback(new Error(result.errors.join()));
-	} else if (!result.contents) {
+		return;
+	}
+
+	if (result.bundle) {
+		const ext = path.extname(relativePath);
+		const base = relativePath.substr(0, relativePath.length - ext.length);
+		const metaDataContent = { ...result.bundle, filePath: removePathPrefix(base, this.query.base) };
+
+		// this.emitFile(`${base}.nls.json`, JSON.stringify(result.bundle.messages, null, '\t'), 'utf8');
+		this.emitFile(`${base}.nls.metadata.json`, JSON.stringify(metaDataContent, null, '\t'), 'utf8');
+	}
+
+	if (!result.contents) {
 		// nothing
 		callback(null, content, map, meta);
 	} else {

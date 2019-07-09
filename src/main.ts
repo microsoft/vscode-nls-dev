@@ -4,7 +4,6 @@
  * ------------------------------------------------------------------------------------------ */
 'use strict';
 
-import * as crypto from 'crypto';
 import { readable, through } from 'event-stream';
 import * as https from 'https';
 import * as Is from 'is';
@@ -12,7 +11,7 @@ import * as path from 'path';
 import { ThroughStream as _ThroughStream } from 'through';
 import { isString } from 'util';
 import * as xml2js from 'xml2js';
-import { bundle2keyValuePair, createLocalizedMessages, JavaScriptMessageBundle, KeyInfo, Map, processFile, resolveMessageBundle } from './lib';
+import { bundle2keyValuePair, createLocalizedMessages, JavaScriptMessageBundle, KeyInfo, Map, processFile, resolveMessageBundle, removePathPrefix, BundledMetaDataHeader, BundledMetaDataFile, SingleMetaDataFile, BundledMetaDataEntry, MetaDataBundler } from './lib';
 import File = require('vinyl');
 import * as fancyLog from 'fancy-log';
 import * as ansiColors from 'ansi-colors';
@@ -26,28 +25,6 @@ interface FileWithSourceMap extends File {
 	sourceMap: any;
 }
 
-interface SingleMetaDataFile {
-	messages: string[];
-	keys: KeyInfo[];
-	filePath: string;
-}
-
-interface BundledMetaDataEntry {
-	messages: string[];
-	keys: KeyInfo[];
-}
-
-interface BundledMetaDataHeader {
-	id: string;
-	type: string;
-	hash: string;
-	outDir: string;
-}
-
-interface BundledMetaDataFile {
-	[key: string]: BundledMetaDataEntry;
-}
-
 const NLS_JSON = '.nls.json';
 const NLS_METADATA_JSON = '.nls.metadata.json';
 const I18N_JSON = '.i18n.json';
@@ -56,22 +33,6 @@ export interface ThroughStream extends _ThroughStream {
 	queue(data: File | null);
 	push(data: File | null);
 	paused: boolean;
-}
-
-function removePathPrefix(path: string, prefix: string): string {
-	if (!prefix) {
-		return path;
-	}
-	if (!path.startsWith(prefix)) {
-		return path;
-	}
-	let ch = prefix.charAt(prefix.length - 1);
-
-	if (ch === '/' || ch === '\\') {
-		return path.substr(prefix.length);
-	} else {
-		return path.substr(prefix.length + 1);
-	}
 }
 
 export function rewriteLocalizeCalls(): ThroughStream {
@@ -166,7 +127,7 @@ export function createMetaDataFiles(): ThroughStream {
 
 export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 	let base: string = undefined;
-	let content: BundledMetaDataFile = Object.create(null);
+	const bundler = new MetaDataBundler(id, outDir);
 	return through(function (this: ThroughStream, file: File) {
 		let basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
@@ -186,40 +147,10 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 		}
 		let buffer: Buffer = file.contents as Buffer;
 		let json: SingleMetaDataFile = JSON.parse(buffer.toString('utf8'));
-		content[json.filePath.replace(/\\/g, '/')] = {
-			messages: json.messages,
-			keys: json.keys
-		};
+		bundler.add(json);
 	}, function () {
 		if (base) {
-			// We use md5 since we only need a finger print.
-			// The actual data is public and put into a file.
-			// Since the hash is used as a file name in the file
-			// system md5 shortens the name and therfore the path
-			// especially under Windows (max path issue).
-			let md5 = crypto.createHash('md5');
-			let keys = Object.keys(content).sort();
-			for (let key of keys) {
-				md5.update(key);
-				let entry: BundledMetaDataEntry = content[key];
-				for (let keyInfo of entry.keys) {
-					if (isString(keyInfo)) {
-						md5.update(keyInfo);
-					} else {
-						md5.update(keyInfo.key)
-					}
-				}
-				for (let message of entry.messages) {
-					md5.update(message);
-				}
-			}
-			let hash = md5.digest('hex');
-			let header: BundledMetaDataHeader = {
-				id,
-				type: "extensionBundle",
-				hash,
-				outDir
-			};
+			const [header, content] = bundler.bundle();
 			this.queue(new File({
 				base: base,
 				path: path.join(base, 'nls.metadata.header.json'),
@@ -555,7 +486,7 @@ export class XLF {
 	}
 
 	static parse(xlfString: string): Promise<ParsedXLF[]> {
-		const getValue = function(this:void, target: any): string | undefined {
+		const getValue = function (this: void, target: any): string | undefined {
 			if (typeof target === 'string') {
 				return target;
 			}
