@@ -840,6 +840,10 @@ export class MetaDataBundler {
 
 	private content: BundledMetaDataFile = Object.create(null);
 
+	get size(): number {
+		return Object.keys(this.content).length;
+	}
+
 	constructor(private id: string, private outDir: string) { }
 
 	add(file: SingleMetaDataFile) {

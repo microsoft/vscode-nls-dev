@@ -27,6 +27,11 @@ export class NLSBundlePlugin {
         bundler.add(json);
       }
 
+      // Skip empty NLS files
+      if (bundler.size === 0) {
+        return;
+      }
+
       const [header, content] = bundler.bundle();
       const rawHeader = JSON.stringify(header);
       const rawContent = JSON.stringify(content);
