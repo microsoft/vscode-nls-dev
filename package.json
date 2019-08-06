@@ -31,7 +31,7 @@
 		"@types/webpack": "^4.4.34",
 		"@types/xml2js": "^0.4.2",
 		"@types/yargs": "^10.0.1",
-		"mocha": "^6.1.4"
+		"mocha": "^6.2.0"
 	},
 	"dependencies": {
 		"ansi-colors": "^3.2.3",
