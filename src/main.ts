@@ -172,7 +172,7 @@ export interface Language {
 	transifexId?: string; // language specific identifier used in transifex e.g. zh-hant used for zh-tw id.
 }
 
-export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string): ThroughStream {
+export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string, logProblems: boolean = true): ThroughStream {
 	return through(function (this: ThroughStream, file: File) {
 		// Queue the original file again.
 		this.queue(file);
@@ -194,7 +194,7 @@ export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir
 			languages.forEach((language) => {
 				let folderName = language.folderName || language.id;
 				let result = createLocalizedMessages(filename, resolvedBundle, folderName, i18nBaseDir, baseDir);
-				if (result.problems && result.problems.length > 0) {
+				if (result.problems && result.problems.length > 0 && logProblems) {
 					result.problems.forEach(problem => log(problem));
 				}
 				if (result.messages) {
