@@ -466,6 +466,9 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 
 		if (ts.isCallExpression(node)) {
 			let parent = node.parent;
+			if (ts.isCallExpression(parent) && ts.isIdentifier(parent.expression) && parent.expression.text === '__importStar') {
+				parent = node.parent.parent;
+			}
 			if (ts.isVariableDeclaration(parent)) {
 				references = service.getReferencesAtPosition(filename, parent.name.pos + 1);
 			}
