@@ -98,6 +98,36 @@ describe('Localize', () => {
 		assert.strictEqual(result.contents, expected.join('\n'));
 	})
 
+	it('works with es imports', () => {
+		let code: string[] = [
+			"import * as nls from 'vscode-nls';",
+			"var localize = nls.loadMessageBundle();",
+			"localize('keyOne', '{0} {1}', 'Hello', 'World');"
+		];
+		let result = nlsDev.processFile(code.join('\n'), 'foo.js');
+		let expected: string[] = [
+			"import * as nls from 'vscode-nls';",
+			"var localize = nls.loadMessageBundle(require('path').join(__dirname, 'foo.js'));",
+			"localize(0, null, 'Hello', 'World');"
+		];
+		assert.strictEqual(result.contents, expected.join('\n'));
+	})
+
+	it('works with import equals', () => {
+		let code: string[] = [
+			"import nls = require('vscode-nls')",
+			"var localize = nls.loadMessageBundle();",
+			"localize('keyOne', '{0} {1}', 'Hello', 'World');"
+		];
+		let result = nlsDev.processFile(code.join('\n'), 'foo.js');
+		let expected: string[] = [
+			"import nls = require('vscode-nls')",
+			"var localize = nls.loadMessageBundle(require('path').join(__dirname, 'foo.js'));",
+			"localize(0, null, 'Hello', 'World');"
+		];
+		assert.strictEqual(result.contents, expected.join('\n'));
+	})
+
 	it('https://github.com/Microsoft/vscode/issues/56792', () => {
 		let code: string[] = [
 			"var nls = require('vscode-nls');",
