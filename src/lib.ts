@@ -377,19 +377,27 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 	}
 
 	function isImportNode(node: ts.Node): boolean {
-		return node.kind === ts.SyntaxKind.ImportDeclaration || node.kind === ts.SyntaxKind.ImportEqualsDeclaration;
+		if (ts.isImportDeclaration(node)) {
+			return ts.isStringLiteralLike(node.moduleSpecifier) && vscodeRegExp.test(node.moduleSpecifier.getText());
+		}
+
+		if (ts.isImportEqualsDeclaration(node)) {
+			return ts.isExternalModuleReference(node.moduleReference)
+			 && ts.isStringLiteralLike(node.moduleReference.expression)
+			 && vscodeRegExp.test(node.moduleReference.expression.getText());
+		}
 	}
 
 	function isRequireImport(node: ts.Node): boolean {
-		if (node.kind !== ts.SyntaxKind.CallExpression) {
+		if (!ts.isCallExpression(node)) {
 			return false;
 		}
-		const callExpression = node as ts.CallExpression;
-		if (callExpression.expression.getText() !== 'require' || !callExpression.arguments || callExpression.arguments.length !== 1) {
+
+		if (node.expression.getText() !== 'require' || !node.arguments || node.arguments.length !== 1) {
 			return false;
 		}
-		const argument = callExpression.arguments[0];
-		return argument.kind === ts.SyntaxKind.StringLiteral && vscodeRegExp.test(argument.getText());
+		const argument = node.arguments[0];
+		return ts.isStringLiteralLike(argument) && vscodeRegExp.test(argument.getText());
 	}
 
 	function findClosestNode(node: ts.Node, textSpan: ts.TextSpan): ts.Node {
@@ -405,38 +413,6 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 			}
 		}
 		return loop(node);
-	}
-
-	function isIdentifier(node: ts.Node): node is ts.Identifier {
-		return node && node.kind === ts.SyntaxKind.Identifier;
-	}
-
-	function isVariableDeclaration(node: ts.Node): node is ts.VariableDeclaration {
-		return node && node.kind === ts.SyntaxKind.VariableDeclaration;
-	}
-
-	function isCallExpression(node: ts.Node): node is ts.CallExpression {
-		return node && node.kind === ts.SyntaxKind.CallExpression;
-	}
-
-	function isPropertyAccessExpression(node: ts.Node): node is ts.PropertyAccessExpression {
-		return node && node.kind === ts.SyntaxKind.PropertyAccessExpression;
-	}
-
-	function isStringLiteral(node: ts.Node): node is ts.StringLiteral {
-		return node && node.kind === ts.SyntaxKind.StringLiteral;
-	}
-
-	function isObjectLiteral(node: ts.Node): node is ts.ObjectLiteralExpression {
-		return node && node.kind === ts.SyntaxKind.ObjectLiteralExpression;
-	}
-
-	function isArrayLiteralExpression(node: ts.Node): node is ts.ArrayLiteralExpression {
-		return node && node.kind === ts.SyntaxKind.ArrayLiteralExpression;
-	}
-
-	function isPropertyAssignment(node: ts.Node): node is ts.PropertyAssignment {
-		return node && node.kind === ts.SyntaxKind.PropertyAssignment;
 	}
 
 	const unescapeMap: Map<string> = {
@@ -483,40 +459,53 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 	const bundle: JavaScriptMessageBundle = { messages: [], keys: [] };
 
 	// all imports
-	const imports = collect(sourceFile, n => isRequireImport(n) ? CollectStepResult.YesAndRecurse : CollectStepResult.NoAndRecurse);
+	const imports = collect(sourceFile, n => isRequireImport(n) || isImportNode(n) ? CollectStepResult.YesAndRecurse : CollectStepResult.NoAndRecurse);
 
 	const nlsReferences = imports.reduce<ts.Node[]>((memo, node) => {
-		if (node.kind === ts.SyntaxKind.CallExpression) {
+		let references: ts.ReferenceEntry[] = [];
+
+		if (ts.isCallExpression(node)) {
 			let parent = node.parent;
-			if (isVariableDeclaration(parent)) {
-				let references = service.getReferencesAtPosition(filename, parent.name.pos + 1);
-				references.forEach(reference => {
-					if (!reference.isWriteAccess) {
-						let node = findClosestNode(sourceFile, reference.textSpan)
-						memo.push(node);
-					}
-				});
+			if (ts.isCallExpression(parent) && ts.isIdentifier(parent.expression) && parent.expression.text === '__importStar') {
+				parent = node.parent.parent;
 			}
+			if (ts.isVariableDeclaration(parent)) {
+				references = service.getReferencesAtPosition(filename, parent.name.pos + 1);
+			}
+		} else if (ts.isImportDeclaration(node)) {
+			if (ts.isNamespaceImport(node.importClause?.namedBindings)) {
+				references = service.getReferencesAtPosition(filename, node.importClause.namedBindings.pos);
+			}
+		} else if (ts.isImportEqualsDeclaration(node)) {
+			references = service.getReferencesAtPosition(filename, node.name.pos);
 		}
+
+		references.forEach(reference => {
+			if (!reference.isWriteAccess) {
+				let node = findClosestNode(sourceFile, reference.textSpan)
+				memo.push(node);
+			}
+		});
+
 		return memo;
 	}, []);
 
 	const loadCalls = nlsReferences.reduce<ts.CallExpression[]>((memo, node) => {
 		// We are looking for nls.loadMessageBundle || nls.config. In the AST
 		// this is Indetifier -> PropertyAccess -> CallExpression.
-		if (!isIdentifier(node) || !isPropertyAccessExpression(node.parent) || !isCallExpression(node.parent.parent)) {
+		if (!ts.isIdentifier(node) || !ts.isPropertyAccessExpression(node.parent) || !ts.isCallExpression(node.parent.parent)) {
 			return memo;
 		}
 		let callExpression = node.parent.parent;
 		let expression = callExpression.expression;
-		if (isPropertyAccessExpression(expression)) {
+		if (ts.isPropertyAccessExpression(expression)) {
 			if (expression.name.text === 'loadMessageBundle') {
 				// We have a load call like nls.loadMessageBundle();
 				memo.push(callExpression);
 			} else if (expression.name.text === 'config') {
 				// We have a load call like nls.config({...})();
 				let parent = callExpression.parent;
-				if (isCallExpression(parent) && parent.expression === callExpression) {
+				if (ts.isCallExpression(parent) && parent.expression === callExpression) {
 					memo.push(parent);
 				}
 			}
@@ -526,17 +515,17 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 
 	const localizeCalls = loadCalls.reduce<ts.CallExpression[]>((memo, loadCall) => {
 		let parent = loadCall.parent;
-		if (isCallExpression(parent)) {
+		if (ts.isCallExpression(parent)) {
 			// We have something like nls.config({...})()('key', 'message');
 			memo.push(parent);
-		} else if (isVariableDeclaration(parent)) {
+		} else if (ts.isVariableDeclaration(parent)) {
 			// We have something like var localize = nls.config({...})();
 			service.getReferencesAtPosition(filename, parent.name.pos + 1).forEach(reference => {
 				if (!reference.isWriteAccess) {
 					let node = findClosestNode(sourceFile, reference.textSpan);
-					if (isIdentifier(node)) {
+					if (ts.isIdentifier(node)) {
 						let parent = node.parent;
-						if (isCallExpression(parent) && parent.arguments.length >= 2) {
+						if (ts.isCallExpression(parent) && parent.arguments.length >= 2) {
 							memo.push(parent);
 						} else {
 							let position = ts.getLineAndCharacterOfPosition(sourceFile, node.pos);
@@ -568,25 +557,25 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 		let message: string = null;
 		let comment: string[] = [];
 		let text: string = null;
-		if (isStringLiteral(firstArg)) {
+		if (ts.isStringLiteralLike(firstArg)) {
 			text = firstArg.getText();
 			key = text.substr(1, text.length - 2);
-		} else if (isObjectLiteral(firstArg)) {
+		} else if (ts.isObjectLiteralExpression(firstArg)) {
 			for (let i = 0; i < firstArg.properties.length; i++) {
 				let property = firstArg.properties[i];
-				if (isPropertyAssignment(property)) {
+				if (ts.isPropertyAssignment(property)) {
 					let name = property.name.getText();
 					if (name === 'key') {
 						let initializer = property.initializer;
-						if (isStringLiteral(initializer)) {
+						if (ts.isStringLiteralLike(initializer)) {
 							text = initializer.getText();
 							key = text.substr(1, text.length - 2);
 						}
 					} else if (name === 'comment') {
 						let initializer = property.initializer;
-						if (isArrayLiteralExpression(initializer)) {
+						if (ts.isArrayLiteralExpression(initializer)) {
 							initializer.elements.forEach(element => {
-								if (isStringLiteral(element)) {
+								if (ts.isStringLiteralLike(element)) {
 									text = element.getText();
 									comment.push(text.substr(1, text.length - 2));
 								}
@@ -601,7 +590,7 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 			errors.push(`(${position.line + 1},${position.character + 1}): first argument of a localize call must either be a string literal or an object literal of type LocalizeInfo.`);
 			return memo;
 		}
-		if (isStringLiteral(secondArg)) {
+		if (ts.isStringLiteralLike(secondArg)) {
 			let text = secondArg.getText();
 			message = text.substr(1, text.length - 2);
 		}
