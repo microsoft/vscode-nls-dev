@@ -1,21 +1,25 @@
 # vscode-nls-dev
-The tools automates the extraction of strings to be externalized from TS and JS code. It therefore helps localizing VSCode extensions and 
+The tools automates the extraction of strings to be externalized from TS and JS code. It therefore helps localizing VSCode extensions and
 language servers written in TS and JS. It also contains helper methods to convert unlocalized JSON to XLIFF format for translations, and back to localized JSON files, with ability to push and pull localizations from Transifex platform.
 
 [![Build Status](https://travis-ci.org/Microsoft/vscode-nls-dev.svg?branch=master)](https://travis-ci.org/Microsoft/vscode-nls-dev)
 [![NPM Version](https://img.shields.io/npm/v/vscode-nls-dev.svg)](https://npmjs.org/package/vscode-nls-dev)
 [![NPM Downloads](https://img.shields.io/npm/dm/vscode-nls-dev.svg)](https://npmjs.org/package/vscode-nls-dev)
 
+### 3.3.2
+
+* Merged [allow es imports, update ts and use their helper methods](https://github.com/microsoft/vscode-nls-dev/pull/27)
+
 ### 3.0.0
 
 * added support to bundle the strings into a single `nls.bundle(.${locale})?.json` file.
 * added support for VS Code language packs.
 
-### 2.1.0: 
+### 2.1.0:
 
 * Add support to push to and pull from Transifex.
 
-### 2.0.0: 
+### 2.0.0:
 
 * based on TypeScript 2.0. Since TS changed the shape of the d.ts files for 2.0.x a major version number got introduce to not break existing clients using TypeScript 1.8.x.
 
@@ -29,7 +33,7 @@ Updating Transifex with latest unlocalized strings is done via `pushXlfFiles('ww
 
 
 ### Onboarding Extension to Transifex
-Here is a sample code that adds localization using Transifex. You can copy and use it as a template for your own extension, changing the values to the ones described in the code comments. 
+Here is a sample code that adds localization using Transifex. You can copy and use it as a template for your own extension, changing the values to the ones described in the code comments.
 
 ```javascript
 var nls = require('vscode-nls-dev');
