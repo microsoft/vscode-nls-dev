@@ -20,15 +20,18 @@ let argv = yargs
 	.option('outDir', {
 		alias: 'o',
 		describe: 'The output directory. If not specified the files are overwriten in place.',
+		string: true,
 		demand: false
 	})
 	.option('rootDir', {
 		alias: 'r',
 		describe: 'The root directory of the sources. Only honored when outDir is set.',
+		string: true,
 		demand: false
 	})
 	.option('keepFilenames', {
 		describe: 'Inlines filenames when making localization calls. Only honored when rootDir is set.',
+		boolean: true,
 		demand: false
 	})
 	.argv;
