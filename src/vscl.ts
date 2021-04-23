@@ -42,6 +42,9 @@ let rootDir = argv.rootDir ? path.resolve(argv.rootDir) : null;
 let keepFilenames = Boolean(argv.keepFilenames);
 
 argv._.forEach(element => {
+	if (typeof element === 'number') {
+		return;
+	}
 	glob(element, (err, matches) => {
 		if (err) {
 			console.error(err.message);
