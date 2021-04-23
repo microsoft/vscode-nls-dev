@@ -48,7 +48,6 @@
 		"yargs": "^16.0.3"
 	},
 	"scripts": {
-		"prepare": "tsc -p ./src",
 		"compile": "tsc -p ./src",
 		"watch": "tsc -w -p ./src",
 		"test": "mocha"
