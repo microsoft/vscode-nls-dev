@@ -430,28 +430,27 @@ export class XLF {
 		}
 
 		this.files[original] = [];
-		let existingKeys = [];
+		let existingKeys: string[] = [];
 
 		for (let key of keys) {
-			// Ignore duplicate keys because Transifex does not populate those with translated values.
-			if (existingKeys.indexOf(key) !== -1) {
-				continue;
-			}
-			existingKeys.push(key);
-
-			let message: string = encodeEntities(messages[keys.indexOf(key)]);
+			let id: string;
 			let comment: string = undefined;
-
-			// Check if the message contains description (if so, it becomes an object type in JSON)
 			if (Is.string(key)) {
-				this.files[original].push({ id: key, message: message, comment: comment });
+				id = key;
 			} else {
+				id = key['key'];
 				if (key['comment'] && key['comment'].length > 0) {
 					comment = key['comment'].map(comment => encodeEntities(comment)).join('\r\n');
 				}
-
-				this.files[original].push({ id: key['key'], message: message, comment: comment });
 			}
+			// Ignore duplicate keys because Transifex does not populate those with translated values.
+			if (existingKeys.indexOf(id) !== -1) {
+				continue;
+			}
+			existingKeys.push(id);
+
+			let message: string = encodeEntities(messages[keys.indexOf(key)]);
+			this.files[original].push({ id: id, message: message, comment: comment });
 		}
 	}
 
@@ -576,17 +575,22 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 		const basename = path.basename(file.path);
 		if (basename === 'package.nls.json') {
 			const json: PackageJsonFormat = JSON.parse(buffer.toString('utf8'));
-			const keys = Object.keys(json);
-			const messages = keys.map((key) => {
-				const value = json[key];
+			let keys: any[] = Object.keys(json);
+			let messages: string[] = [];
+			for (let i: number = 0; i < keys.length; i++) {
+				const value = json[keys[i]];
 				if (Is.string(value)) {
-					return value;
+					messages.push(value);
 				} else if (value) {
-					return value.message;
+					messages.push(value.message);
+					keys[i] = {
+						key: keys[i],
+						comment: value.comment
+					};
 				} else {
-					return `Unknown message for key: ${key}`;
+					return `Unknown message for key: ${keys[i]}`;
 				}
-			});
+			}
 			getXlf().addFile('package', keys, messages);
 		} else if (basename === 'nls.metadata.json') {
 			data = JSON.parse(buffer.toString('utf8'));
