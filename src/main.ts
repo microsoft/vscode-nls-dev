@@ -588,7 +588,7 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 						comment: value.comment
 					};
 				} else {
-					return `Unknown message for key: ${keys[i]}`;
+					messages.push(`Unknown message for key: ${keys[i]}`);
 				}
 			}
 			getXlf().addFile('package', keys, messages);
