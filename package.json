@@ -30,7 +30,7 @@
 		"@types/vinyl": "^2.0.2",
 		"@types/webpack": "^4.4.34",
 		"@types/xml2js": "^0.4.2",
-		"@types/yargs": "^15.0.5",
+		"@types/yargs": "^16.0.1",
 		"mocha": "^7.1.2"
 	},
 	"dependencies": {
@@ -45,7 +45,7 @@
 		"typescript": "^3.9.5",
 		"vinyl": "^2.1.0",
 		"xml2js": "^0.4.19",
-		"yargs": "^16.0.3"
+		"yargs": "^17.0.1"
 	},
 	"scripts": {
 		"compile": "tsc -p ./src",

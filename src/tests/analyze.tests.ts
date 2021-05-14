@@ -8,8 +8,8 @@ import * as assert from 'assert';
 
 import * as nlsDev from '../lib';
 
-describe('Localize', () => {
-	it('Analyze Simple Key', () => {
+suite('Localize', () => {
+	test('Analyze Simple Key', () => {
 		let code: string[] = [
 			"var nls = require('vscode-nls');",
 			"var localize = nls.config({ locale: 'de-DE', cache: true })();",
@@ -36,7 +36,7 @@ describe('Localize', () => {
 			]
 		});
 	});
-	it('Analyze Complex Key', () => {
+	test('Analyze Complex Key', () => {
 		let code: string[] = [
 			"var nls = require('vscode-nls');",
 			"var localize = nls.config({ locale: 'de-DE', cache: true })();",
@@ -68,7 +68,7 @@ describe('Localize', () => {
 			]
 		});
 	});
-	it('loadMessageBundle', () => {
+	test('loadMessageBundle', () => {
 		let code: string[] = [
 			"var nls = require('vscode-nls');",
 			"var localize = nls.loadMessageBundle();",
@@ -83,7 +83,7 @@ describe('Localize', () => {
 		assert.strictEqual(result.contents, expected.join('\n'));
 	})
 
-	it('keepFilename', () => {
+	test('keepFilename', () => {
 		let code: string[] = [
 			"var nls = require('vscode-nls');",
 			"var localize = nls.loadMessageBundle();",
@@ -98,7 +98,7 @@ describe('Localize', () => {
 		assert.strictEqual(result.contents, expected.join('\n'));
 	})
 
-	it('works with es imports', () => {
+	test('works with es imports', () => {
 		let code: string[] = [
 			"import * as nls from 'vscode-nls';",
 			"var localize = nls.loadMessageBundle();",
@@ -113,7 +113,7 @@ describe('Localize', () => {
 		assert.strictEqual(result.contents, expected.join('\n'));
 	})
 
-	it('works with import equals', () => {
+	test('works with import equals', () => {
 		let code: string[] = [
 			"import nls = require('vscode-nls')",
 			"var localize = nls.loadMessageBundle();",
@@ -128,7 +128,7 @@ describe('Localize', () => {
 		assert.strictEqual(result.contents, expected.join('\n'));
 	})
 
-	it('works with compiled __importStar', () => {
+	test('works with compiled __importStar', () => {
 		let code: string[] = [
 			"const nls = __importStar(require('vscode-nls'))",
 			"var localize = nls.loadMessageBundle();",
@@ -144,7 +144,7 @@ describe('Localize', () => {
 	})
 
 
-	it('https://github.com/Microsoft/vscode/issues/56792', () => {
+	test('https://github.com/Microsoft/vscode/issues/56792', () => {
 		let code: string[] = [
 			"var nls = require('vscode-nls');",
 			"var localize = nls.loadMessageBundle();",
