@@ -51,12 +51,21 @@ export interface LocalizeInfo {
 
 export namespace LocalizeInfo {
 	export function is(value: any): value is LocalizeInfo {
-		let candidate = value as LocalizeInfo;
-		return candidate && isDefined(candidate.key) && isDefined(candidate.comment);
+		const candidate = value as LocalizeInfo;
+		return candidate !== undefined && candidate.key !== undefined && candidate.comment !== undefined;
 	}
 }
 
 export type KeyInfo = string | LocalizeInfo;
+
+export namespace KeyInfo {
+	export function key(value: KeyInfo): string {
+		return isString(value) ? value : value.key;
+	}
+	export function comment(value: KeyInfo): string[] | undefined {
+		return isString(value) ? undefined : value.comment;
+	}
+}
 
 export interface JavaScriptMessageBundle {
 	messages: string[];
@@ -66,7 +75,7 @@ export interface JavaScriptMessageBundle {
 export namespace JavaScriptMessageBundle {
 	export function is(value: any): value is JavaScriptMessageBundle {
 		let candidate = value as JavaScriptMessageBundle;
-		return candidate && isDefined(candidate.messages) && isDefined(candidate.keys);
+		return candidate && candidate.messages !== undefined && candidate.keys !== undefined;
 	}
 }
 
@@ -78,16 +87,16 @@ export interface ResolvedJavaScriptMessageBundle {
 
 export namespace ResolvedJavaScriptMessageBundle {
 	export function is(value: any): value is ResolvedJavaScriptMessageBundle {
-		let candidate = value as ResolvedJavaScriptMessageBundle;
-		return candidate && isDefined(candidate.keys) && isDefined(candidate.messages) && isDefined(candidate.map);
+		const candidate = value as ResolvedJavaScriptMessageBundle;
+		return candidate && candidate.keys !== undefined && candidate.messages !== undefined && candidate.map !== undefined;
 	}
-	export function asTranslatedMessages(bundle: ResolvedJavaScriptMessageBundle, translatedMessages: Map<string>, problems: string[]): string[] {
-		let result: string[] = [];
+	export function asTranslatedMessages(bundle: ResolvedJavaScriptMessageBundle, translatedMessages: Map<string> | undefined, problems: string[]): string[] {
+		const result: string[] = [];
 		bundle.keys.forEach(key => {
 			let translated = translatedMessages ? translatedMessages[key] : undefined;
-			if (isUndefined(translated)) {
+			if (translated === undefined) {
 				if (translatedMessages) {
-					problems.push(`No localized message found for key ${key}`)
+					problems.push(`No localized message found for key ${key}`);
 				}
 				translated = bundle.map[key];
 			}
@@ -102,13 +111,13 @@ export interface PackageJsonMessageBundle {
 }
 
 export namespace PackageJsonMessageBundle {
-	export function asTranslatedMessages(bundle: PackageJsonMessageBundle, translatedMessages: Map<string>, problems: string[]): Map<string> {
-		let result: Map<string> = Object.create(null);
+	export function asTranslatedMessages(bundle: PackageJsonMessageBundle, translatedMessages: Map<string> | undefined, problems: string[]): Map<string> {
+		const result: Map<string> = Object.create(null);
 		Object.keys(bundle).forEach((key) => {
 			let message = translatedMessages ? translatedMessages[key] : undefined;
-			if (isUndefined(message)) {
+			if (message === undefined) {
 				if (translatedMessages) {
-					problems.push(`No localized message found for key ${key}`)
+					problems.push(`No localized message found for key ${key}`);
 				}
 				message = bundle[key];
 			}
@@ -131,23 +140,15 @@ interface MappingItem extends BaseMappingItem {
 }
 
 interface Line {
-	content: string;
+	content: string | null;
 	ending: string;
-	mappings: MappingItem[];
+	mappings: MappingItem[] | null;
 }
 
 const toString = Object.prototype.toString;
 
 function isString(value: any): value is string {
 	return toString.call(value) === '[object String]';
-}
-
-function isDefined(value: any): boolean {
-	return typeof value !== 'undefined';
-}
-
-function isUndefined(value: any): boolean {
-	return typeof value === 'undefined';
 }
 
 class TextModel {
@@ -157,7 +158,7 @@ class TextModel {
 	constructor(contents: string, private rawSourceMap?: RawSourceMap) {
 		const regex = /\r\n|\r|\n/g;
 		let index = 0;
-		let match: RegExpExecArray;
+		let match: RegExpExecArray | null;
 
 		this.lines = [];
 
@@ -170,7 +171,7 @@ class TextModel {
 			this.lines.push({ content: contents.substring(index, contents.length), ending: '', mappings: null });
 		}
 		if (rawSourceMap) {
-			let sourceMapConsumer = new SourceMapConsumer(rawSourceMap);
+			const sourceMapConsumer = new SourceMapConsumer(rawSourceMap);
 			sourceMapConsumer.eachMapping((mapping) => {
 				// Note that the generatedLine index is one based;
 				let line = this.lines[mapping.generatedLine - 1];
@@ -199,16 +200,16 @@ class TextModel {
 		}
 
 		patches = patches.sort((a, b) => {
-			let lca = a.span.start;
-			let lcb = b.span.start;
-			return lca.line != lcb.line ? lca.line - lcb.line : lca.character - lcb.character;
+			const lca = a.span.start;
+			const lcb = b.span.start;
+			return lca.line !== lcb.line ? lca.line - lcb.line : lca.character - lcb.character;
 		});
 
 		let overlapping = false;
 		if (patches.length > 1) {
-			let previousSpan = patches[0].span;
+			const previousSpan = patches[0].span;
 			for (let i = 1; i < patches.length; i++) {
-				let nextSpan = patches[i].span;
+				const nextSpan = patches[i].span;
 
 				if (previousSpan.end.line > nextSpan.start.line || (previousSpan.end.line === nextSpan.start.line && previousSpan.end.character >= nextSpan.start.character)) {
 					overlapping = true;
@@ -219,10 +220,10 @@ class TextModel {
 		if (overlapping) {
 			throw new Error(`Overlapping text edits generated.`);
 		}
-		let lastPatch = patches[patches.length - 1];
-		let lastLine = this.lines[this.lineCount - 1];
+		const lastPatch = patches[patches.length - 1];
+		const lastLine = this.lines[this.lineCount - 1];
 
-		if (lastPatch.span.end.line > this.lines.length || (lastPatch.span.end.line === this.lineCount && lastPatch.span.end.character > lastLine.content.length)) {
+		if (lastPatch.span.end.line > this.lines.length || (lastPatch.span.end.line === this.lineCount && lastPatch.span.end.character > lastLine.content!.length)) {
 			throw new Error(`Patches are outside of the buffer content.`);
 		}
 
@@ -239,9 +240,9 @@ class TextModel {
 
 			// Do the textual manipulations.
 			startLine.content = [
-				startLine.content.substring(0, patch.span.start.character),
+				startLine.content!.substring(0, patch.span.start.character),
 				patch.content,
-				endLine.content.substring(patch.span.end.character)
+				endLine.content!.substring(patch.span.end.character)
 			].join('');
 			for (let i = startLineNumber + 1; i <= endLineNumber; i++) {
 				this.lines[i].content = null;
@@ -255,8 +256,8 @@ class TextModel {
 						mappingCursor.index = startLine.mappings ? startLine.mappings.length - 1 : -1;
 					}
 					let delta = patch.content.length - (patch.span.end.character - patch.span.start.character);
-					let mappingItem: MappingItem = null;
-					while ((mappingItem = mappingCursor.index !== -1 ? startLine.mappings[mappingCursor.index] : null) != null
+					let mappingItem: MappingItem | null = null;
+					while ((mappingItem = mappingCursor.index !== -1 ? startLine.mappings![mappingCursor.index] : null) !== null
 						&& mappingItem.generatedColumn > patch.span.start.character) {
 						if (mappingItem.generatedColumn < patch.span.end.character) {
 							// The patch covers the source mapping. Delete it
@@ -265,8 +266,8 @@ class TextModel {
 						mappingCursor.index--;
 					}
 					// Record the delta on the first source marker after the patch.
-					if (mappingCursor.index + 1 < startLine.mappings.length) {
-						let mapping = startLine.mappings[mappingCursor.index + 1];
+					if (mappingCursor.index + 1 < startLine.mappings!.length) {
+						let mapping = startLine.mappings![mappingCursor.index + 1];
 						mapping.columnDelta = (mapping.columnDelta || 0) + delta;
 					}
 				} else {
@@ -282,20 +283,20 @@ class TextModel {
 							line.mappings.forEach(mapping => mapping.delete = true);
 						}
 					}
-					let endLineMappins = endLine.mappings;
-					if (endLineMappins) {
+					let endLineMappings = endLine.mappings;
+					if (endLineMappings) {
 						let lineDelta = startLineNumber - endLineNumber;
 						let index = 0;
-						for (; index < endLineMappins.length; index++) {
-							let mapping = endLineMappins[index];
+						for (; index < endLineMappings.length; index++) {
+							let mapping = endLineMappings[index];
 							if (mapping.generatedColumn < patch.span.end.character) {
 								mapping.delete = true;
 							} else {
 								break;
 							}
 						}
-						if (index < endLineMappins.length) {
-							let mapping = endLineMappins[index];
+						if (index < endLineMappings.length) {
+							let mapping = endLineMappings[index];
 							mapping.lineDelta = lineDelta;
 							mapping.columnDelta = (patch.span.start.character - patch.span.end.character) + patch.content.length;
 						}
@@ -305,14 +306,14 @@ class TextModel {
 		});
 	}
 
-	public generateSourceMap(): string {
+	public generateSourceMap(): string | undefined {
 		if (!this.rawSourceMap) {
 			return undefined;
 		}
-		let sourceMapGenerator = new SourceMapGenerator({ sourceRoot: this.rawSourceMap.sourceRoot });
+		const sourceMapGenerator = new SourceMapGenerator({ sourceRoot: this.rawSourceMap.sourceRoot });
 		let lineDelta = 0;
 		this.lines.forEach(line => {
-			let mappings = line.mappings;
+			const mappings = line.mappings;
 			let columnDelta = 0;
 			if (mappings) {
 				mappings.forEach(mapping => {
@@ -329,7 +330,7 @@ class TextModel {
 					});
 				});
 			}
-		})
+		});
 		return sourceMapGenerator.toString();
 	}
 
@@ -346,7 +347,7 @@ class TextModel {
 	}
 }
 
-function analyze(contents: string, relativeFilename: string, options: ts.CompilerOptions = {}): AnalysisResult {
+function analyze(contents: string, relativeFilename: string | undefined, options: ts.CompilerOptions = {}): AnalysisResult {
 
 	const vscodeRegExp = /^\s*(["'])vscode-nls\1\s*$/;
 
@@ -361,7 +362,7 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 		const result: ts.Node[] = [];
 
 		function loop(node: ts.Node) {
-			var stepResult = fn(node);
+			const stepResult = fn(node);
 
 			if (stepResult === CollectStepResult.Yes || stepResult === CollectStepResult.YesAndRecurse) {
 				result.push(node);
@@ -386,6 +387,7 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 			 && ts.isStringLiteralLike(node.moduleReference.expression)
 			 && vscodeRegExp.test(node.moduleReference.expression.getText());
 		}
+		return false;
 	}
 
 	function isRequireImport(node: ts.Node): boolean {
@@ -403,14 +405,15 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 	function findClosestNode(node: ts.Node, textSpan: ts.TextSpan): ts.Node {
 		let textSpanEnd = textSpan.start + textSpan.length;
 		function loop(node: ts.Node): ts.Node {
-			let length = node.end - node.pos;
+			const length = node.end - node.pos;
 			if (node.pos === textSpan.start && length === textSpan.length) {
 				return node;
 			}
 			if (node.pos <= textSpan.start && textSpanEnd <= node.end) {
-				let candidadate = ts.forEachChild(node, loop);
-				return candidadate || node;
+				const candidate = ts.forEachChild(node, loop);
+				return candidate || node;
 			}
+			return node;
 		}
 		return loop(node);
 	}
@@ -427,13 +430,13 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 	};
 
 	function unescapeString(str: string): string {
-		var result: string[] = [];
+		const result: string[] = [];
 		for (let i = 0; i < str.length; i++) {
-			let ch = str.charAt(i);
+			const ch = str.charAt(i);
 			if (ch === '\\') {
 				if (i + 1 < str.length) {
 					let replace = unescapeMap[str.charAt(i + 1)];
-					if (isDefined(replace)) {
+					if (replace !== undefined) {
 						result.push(replace);
 						i++;
 						continue;
@@ -452,7 +455,7 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 	const filename = 'file.js';
 	const serviceHost = new SingleFileServiceHost(options, filename, contents);
 	const service = ts.createLanguageService(serviceHost);
-	const sourceFile = service.getProgram().getSourceFile(filename);
+	const sourceFile = service.getProgram()!.getSourceFile(filename)!;
 
 	const patches: Patch[] = [];
 	const errors: string[] = [];
@@ -462,7 +465,7 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 	const imports = collect(sourceFile, n => isRequireImport(n) || isImportNode(n) ? CollectStepResult.YesAndRecurse : CollectStepResult.NoAndRecurse);
 
 	const nlsReferences = imports.reduce<ts.Node[]>((memo, node) => {
-		let references: ts.ReferenceEntry[] = [];
+		let references: ts.ReferenceEntry[] | undefined;
 
 		if (ts.isCallExpression(node)) {
 			let parent = node.parent;
@@ -472,20 +475,22 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 			if (ts.isVariableDeclaration(parent)) {
 				references = service.getReferencesAtPosition(filename, parent.name.pos + 1);
 			}
-		} else if (ts.isImportDeclaration(node)) {
-			if (ts.isNamespaceImport(node.importClause?.namedBindings)) {
+		} else if (ts.isImportDeclaration(node) && node.importClause && node.importClause.namedBindings) {
+			if (ts.isNamespaceImport(node.importClause.namedBindings)) {
 				references = service.getReferencesAtPosition(filename, node.importClause.namedBindings.pos);
 			}
 		} else if (ts.isImportEqualsDeclaration(node)) {
 			references = service.getReferencesAtPosition(filename, node.name.pos);
 		}
 
-		references.forEach(reference => {
-			if (!reference.isWriteAccess) {
-				let node = findClosestNode(sourceFile, reference.textSpan)
-				memo.push(node);
-			}
-		});
+		if (references) {
+			references.forEach(reference => {
+				if (!reference.isWriteAccess) {
+					let node = findClosestNode(sourceFile, reference.textSpan);
+					memo.push(node);
+				}
+			});
+		}
 
 		return memo;
 	}, []);
@@ -496,8 +501,8 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 		if (!ts.isIdentifier(node) || !ts.isPropertyAccessExpression(node.parent) || !ts.isCallExpression(node.parent.parent)) {
 			return memo;
 		}
-		let callExpression = node.parent.parent;
-		let expression = callExpression.expression;
+		const callExpression = node.parent.parent;
+		const expression = callExpression.expression;
 		if (ts.isPropertyAccessExpression(expression)) {
 			if (expression.name.text === 'loadMessageBundle') {
 				// We have a load call like nls.loadMessageBundle();
@@ -514,33 +519,36 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 	}, []);
 
 	const localizeCalls = loadCalls.reduce<ts.CallExpression[]>((memo, loadCall) => {
-		let parent = loadCall.parent;
+		const parent = loadCall.parent;
 		if (ts.isCallExpression(parent)) {
 			// We have something like nls.config({...})()('key', 'message');
 			memo.push(parent);
 		} else if (ts.isVariableDeclaration(parent)) {
 			// We have something like var localize = nls.config({...})();
-			service.getReferencesAtPosition(filename, parent.name.pos + 1).forEach(reference => {
-				if (!reference.isWriteAccess) {
-					let node = findClosestNode(sourceFile, reference.textSpan);
-					if (ts.isIdentifier(node)) {
-						let parent = node.parent;
-						if (ts.isCallExpression(parent) && parent.arguments.length >= 2) {
-							memo.push(parent);
-						} else {
-							let position = ts.getLineAndCharacterOfPosition(sourceFile, node.pos);
-							errors.push(`(${position.line + 1},${position.character + 1}): localize function (bound to ${node.text}) used in an unusual way.`);
+			const references = service.getReferencesAtPosition(filename, parent.name.pos + 1);
+			if (references) {
+				references.forEach(reference => {
+					if (!reference.isWriteAccess) {
+						let node = findClosestNode(sourceFile, reference.textSpan);
+						if (ts.isIdentifier(node)) {
+							let parent = node.parent;
+							if (ts.isCallExpression(parent) && parent.arguments.length >= 2) {
+								memo.push(parent);
+							} else {
+								let position = ts.getLineAndCharacterOfPosition(sourceFile, node.pos);
+								errors.push(`(${position.line + 1},${position.character + 1}): localize function (bound to ${node.text}) used in an unusual way.`);
+							}
 						}
 					}
-				}
-			});
+				});
+			}
 		}
 		return memo;
 	}, []);
 
 	loadCalls.reduce((memo, loadCall) => {
 		if (loadCall.arguments.length === 0) {
-			let args = loadCall.arguments;
+			const args = loadCall.arguments;
 			patches.push({
 				span: { start: ts.getLineAndCharacterOfPosition(sourceFile, args.pos), end: ts.getLineAndCharacterOfPosition(sourceFile, args.end) },
 				content: relativeFilename ? `require('path').join(__dirname, '${relativeFilename.replace(/\\/g, '\\\\')}')` : '__filename',
@@ -551,28 +559,28 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 
 	let messageIndex = 0;
 	localizeCalls.reduce((memo, localizeCall) => {
-		let firstArg = localizeCall.arguments[0];
-		let secondArg = localizeCall.arguments[1];
-		let key: string = null;
-		let message: string = null;
+		const firstArg = localizeCall.arguments[0];
+		const secondArg = localizeCall.arguments[1];
+		let key: string | null = null;
+		let message: string | null = null;
 		let comment: string[] = [];
-		let text: string = null;
+		let text: string | null = null;
 		if (ts.isStringLiteralLike(firstArg)) {
 			text = firstArg.getText();
 			key = text.substr(1, text.length - 2);
 		} else if (ts.isObjectLiteralExpression(firstArg)) {
 			for (let i = 0; i < firstArg.properties.length; i++) {
-				let property = firstArg.properties[i];
+				const property = firstArg.properties[i];
 				if (ts.isPropertyAssignment(property)) {
-					let name = property.name.getText();
+					const name = property.name.getText();
 					if (name === 'key') {
-						let initializer = property.initializer;
+						const initializer = property.initializer;
 						if (ts.isStringLiteralLike(initializer)) {
 							text = initializer.getText();
 							key = text.substr(1, text.length - 2);
 						}
 					} else if (name === 'comment') {
-						let initializer = property.initializer;
+						const initializer = property.initializer;
 						if (ts.isArrayLiteralExpression(initializer)) {
 							initializer.elements.forEach(element => {
 								if (ts.isStringLiteralLike(element)) {
@@ -586,16 +594,16 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 			}
 		}
 		if (!key) {
-			let position = ts.getLineAndCharacterOfPosition(sourceFile, firstArg.pos);
+			const position = ts.getLineAndCharacterOfPosition(sourceFile, firstArg.pos);
 			errors.push(`(${position.line + 1},${position.character + 1}): first argument of a localize call must either be a string literal or an object literal of type LocalizeInfo.`);
 			return memo;
 		}
 		if (ts.isStringLiteralLike(secondArg)) {
-			let text = secondArg.getText();
+			const text = secondArg.getText();
 			message = text.substr(1, text.length - 2);
 		}
 		if (!message) {
-			let position = ts.getLineAndCharacterOfPosition(sourceFile, secondArg.pos);
+			const position = ts.getLineAndCharacterOfPosition(sourceFile, secondArg.pos);
 			errors.push(`(${position.line + 1},${position.character + 1}): second argument of a localize call must be a string literal.`);
 			return memo;
 		}
@@ -628,7 +636,7 @@ function analyze(contents: string, relativeFilename: string, options: ts.Compile
 	};
 }
 
-export function processFile(contents: string, relativeFileName: string, sourceMap?: string | RawSourceMap): { contents: string, sourceMap: string, bundle: JavaScriptMessageBundle, errors: string[] } {
+export function processFile(contents: string, relativeFileName: string | undefined, sourceMap?: string | RawSourceMap): { contents: string | undefined, sourceMap: string | undefined, bundle: JavaScriptMessageBundle | undefined, errors: string[] } {
 
 	const analysisResult = analyze(contents, relativeFileName);
 	if (analysisResult.patches.length === 0) {
@@ -639,12 +647,11 @@ export function processFile(contents: string, relativeFileName: string, sourceMa
 			errors: analysisResult.errors
 		};
 	}
-	let rawSourceMap: RawSourceMap = undefined;
+	let rawSourceMap: RawSourceMap | undefined = undefined;
 	if (isString(sourceMap)) {
 		try {
 			rawSourceMap = JSON.parse(sourceMap);
 		} catch (e) {
-
 		}
 	} else if (sourceMap) {
 		rawSourceMap = sourceMap;
@@ -669,7 +676,7 @@ function stripComments(content: string): string {
 	* Fourth matches line comments
 	*/
 	var regexp: RegExp = /("(?:[^\\\"]*(?:\\.)?)*")|('(?:[^\\\']*(?:\\.)?)*')|(\/\*(?:\r?\n|.)*?\*\/)|(\/{2,}.*?(?:(?:\r?\n)|$))/g;
-	let result = content.replace(regexp, (match, m1, m2, m3, m4) => {
+	let result = content.replace(regexp, (match, _m1, _m2, m3, m4) => {
 		// Only one of m1, m2, m3, m4 matches
 		if (m3) {
 			// A block comment. Replace with nothing
@@ -688,19 +695,19 @@ function stripComments(content: string): string {
 		}
 	});
 	return result;
-};
+}
 
 export function resolveMessageBundle(bundle: JavaScriptMessageBundle): ResolvedJavaScriptMessageBundle;
 export function resolveMessageBundle(bundle: PackageJsonMessageBundle): PackageJsonMessageBundle;
-export function resolveMessageBundle(bundle: JavaScriptMessageBundle | PackageJsonMessageBundle): ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle {
+export function resolveMessageBundle(bundle: JavaScriptMessageBundle | PackageJsonMessageBundle): ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle | null {
 	if (JavaScriptMessageBundle.is(bundle)) {
 		if (bundle.messages.length !== bundle.keys.length) {
 			return null;
 		}
-		let keys: string[] = [];
-		let map: Map<string> = Object.create(null);
+		const keys: string[] = [];
+		const map: Map<string> = Object.create(null);
 		bundle.keys.forEach((key, index) => {
-			let resolvedKey = isString(key) ? key : key.key;
+			const resolvedKey = isString(key) ? key : key.key;
 			keys.push(resolvedKey);
 			map[resolvedKey] = bundle.messages[index];
 		});
@@ -716,16 +723,16 @@ export interface LocalizedMessagesResult {
 }
 
 export function createLocalizedMessages(filename: string, bundle: ResolvedJavaScriptMessageBundle | PackageJsonMessageBundle, languageFolderName: string, i18nBaseDir: string, baseDir?: string): LocalizedMessagesResult {
-	let problems: string[] = [];
-	let i18nFile = (baseDir
+	const problems: string[] = [];
+	const i18nFile = (baseDir
 		? path.join(i18nBaseDir, languageFolderName, baseDir, filename)
 		: path.join(i18nBaseDir, languageFolderName, filename)) + '.i18n.json';
 
-	let messages: Map<string>;
+	let messages: Map<string> | undefined;
 	let bundleLength = ResolvedJavaScriptMessageBundle.is(bundle) ? bundle.keys.length : Object.keys(bundle).length;
 	if (fs.existsSync(i18nFile)) {
-		let content = stripComments(fs.readFileSync(i18nFile, 'utf8'));
-		messages = JSON.parse(content);
+		const content = stripComments(fs.readFileSync(i18nFile, 'utf8'));
+		messages = JSON.parse(content) as Map<string>;
 		if (Object.keys(messages).length === 0) {
 			if (bundleLength > 0) {
 				problems.push(`Message file ${i18nFile.substr(i18nBaseDir.length + 1)} is empty. Missing messages: ${bundleLength}`);
@@ -752,13 +759,12 @@ export function createLocalizedMessages(filename: string, bundle: ResolvedJavaSc
 	return { messages: translatedMessages, problems };
 }
 
-export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, commentSeparator: string = undefined): any {
+export function bundle2keyValuePair(bundle: JavaScriptMessageBundle, commentSeparator: string | undefined = undefined): any {
 	let result = Object.create(null);
 
 	for (var i = 0; i < bundle.messages.length; ++i) {
 		let key: string;
-		let comments: string[];
-		let message: string = bundle.messages[i];
+		let comments: string[] | undefined;
 		let keyInfo = bundle.keys[i];
 
 		if (LocalizeInfo.is(keyInfo)) {
@@ -793,7 +799,7 @@ export function removePathPrefix(path: string, prefix: string): string {
 	if (!path.startsWith(prefix)) {
 		return path;
 	}
-	let ch = prefix.charAt(prefix.length - 1);
+	const ch = prefix.charAt(prefix.length - 1);
 
 	if (ch === '/' || ch === '\\') {
 		return path.substr(prefix.length);
@@ -843,28 +849,28 @@ export class MetaDataBundler {
 		// We use md5 since we only need a finger print.
 		// The actual data is public and put into a file.
 		// Since the hash is used as a file name in the file
-		// system md5 shortens the name and therfore the path
+		// system md5 shortens the name and therefore the path
 		// especially under Windows (max path issue).
-		let md5 = crypto.createHash('md5');
-		let keys = Object.keys(this.content).sort();
+		const md5 = crypto.createHash('md5');
+		const keys = Object.keys(this.content).sort();
 		for (let key of keys) {
 			md5.update(key);
-			let entry: BundledMetaDataEntry = this.content[key];
-			for (let keyInfo of entry.keys) {
+			const entry: BundledMetaDataEntry = this.content[key];
+			for (const keyInfo of entry.keys) {
 				if (isString(keyInfo)) {
 					md5.update(keyInfo);
 				} else {
-					md5.update(keyInfo.key)
+					md5.update(keyInfo.key);
 				}
 			}
 			for (let message of entry.messages) {
 				md5.update(message);
 			}
 		}
-		let hash = md5.digest('hex');
-		let header: BundledMetaDataHeader = {
+		const hash = md5.digest('hex');
+		const header: BundledMetaDataHeader = {
 			id: this.id,
-			type: "extensionBundle",
+			type: 'extensionBundle',
 			hash,
 			outDir: this.outDir
 		};

@@ -14,8 +14,7 @@ import * as glob from 'glob';
 
 import { processFile } from './lib';
 
-
-let argv = yargs
+const argv = yargs
 	.usage('Usage: vscl [options] files')
 	.option('outDir', {
 		alias: 'o',
@@ -37,9 +36,9 @@ let argv = yargs
 	.argv;
 
 let hasError: boolean = false;
-let outDir = argv.outDir ? path.resolve(argv.outDir) : null;
-let rootDir = argv.rootDir ? path.resolve(argv.rootDir) : null;
-let keepFilenames = Boolean(argv.keepFilenames);
+const outDir = argv.outDir ? path.resolve(argv.outDir) : null;
+const rootDir = argv.rootDir ? path.resolve(argv.rootDir) : null;
+const keepFilenames = Boolean(argv.keepFilenames);
 
 argv._.forEach(element => {
 	if (typeof element === 'number') {
@@ -52,35 +51,37 @@ argv._.forEach(element => {
 			return;
 		}
 		matches.forEach(file => {
-			let resolvedFile = path.resolve(file);
-			let contents: string = fs.readFileSync(resolvedFile, 'utf8');
+			const resolvedFile = path.resolve(file);
+			const contents: string = fs.readFileSync(resolvedFile, 'utf8');
 
-			let sourceMapFile: string = null;
-			let resolvedSourceMapFile: string = null;
-			let sourceMapContent: string = undefined;
+			let sourceMapFile: string | null = null;
+			let resolvedSourceMapFile: string | null = null;
+			let sourceMapContent: string | undefined = undefined;
 
-			let sourceMapMatches = contents.match(/\/\/#\s+sourceMappingURL=(.*)(?:\r?\n|\n|$)/);
+			const sourceMapMatches = contents.match(/\/\/#\s+sourceMappingURL=(.*)(?:\r?\n|\n|$)/);
 			if (sourceMapMatches && sourceMapMatches.length === 2) {
 				let sourceMapUrl = url.parse(sourceMapMatches[1]);
-				// For now we only support relative pathes
+				// For now we only support relative paths
 				if (sourceMapUrl.protocol || sourceMapUrl.host) {
 					console.error(`${file}: protocol or host based source map URLs are not supported.`);
 					hasError = true;
 				}
-				let pathname = sourceMapUrl.pathname;
-				if (path.isAbsolute(pathname)) {
-					resolvedSourceMapFile = pathname;
-				} else {
-					sourceMapFile = pathname;
-					resolvedSourceMapFile = path.join(path.dirname(file), sourceMapFile);
+				const pathname = sourceMapUrl.pathname;
+				if (pathname) {
+					if (path.isAbsolute(pathname)) {
+						resolvedSourceMapFile = pathname;
+					} else {
+						sourceMapFile = pathname;
+						resolvedSourceMapFile = path.join(path.dirname(file), sourceMapFile);
+					}
 				}
-				if (fs.existsSync(resolvedSourceMapFile)) {
+				if (resolvedSourceMapFile && fs.existsSync(resolvedSourceMapFile)) {
 					sourceMapContent = fs.readFileSync(resolvedSourceMapFile, 'utf8');
 				}
 			}
 
-			let relativeFilename = keepFilenames && rootDir ? path.relative(rootDir, resolvedFile) : undefined;
-			let result = processFile(contents, relativeFilename, sourceMapContent);
+			const relativeFilename = keepFilenames && rootDir ? path.relative(rootDir, resolvedFile) : undefined;
+			const result = processFile(contents, relativeFilename, sourceMapContent);
 
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file}${error}`));
@@ -99,7 +100,7 @@ argv._.forEach(element => {
 					}
 				}
 				if (result.contents) {
-					let dirname = path.dirname(outFile);
+					const dirname = path.dirname(outFile);
 					if (!fs.existsSync(dirname)) {
 						fs.mkdirSync(path.dirname(outFile));
 					}
@@ -109,9 +110,9 @@ argv._.forEach(element => {
 					fs.writeFileSync(sourceMapOutFile, result.sourceMap, { encoding: 'utf8' });
 				}
 				if (result.bundle) {
-					let extension = path.extname(outFile);
-					let bundlefile = outFile.substr(0, outFile.length - extension.length) + '.nls.json';
-					fs.writeFileSync(bundlefile, JSON.stringify(result.bundle, null, 4), { encoding: 'utf8' });
+					const extension = path.extname(outFile);
+					const bundledFile = outFile.substr(0, outFile.length - extension.length) + '.nls.json';
+					fs.writeFileSync(bundledFile, JSON.stringify(result.bundle, null, 4), { encoding: 'utf8' });
 				}
 			}
 		});
