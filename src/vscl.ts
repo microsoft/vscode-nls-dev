@@ -18,7 +18,7 @@ const argv = yargs
 	.usage('Usage: vscl [options] files')
 	.option('outDir', {
 		alias: 'o',
-		describe: 'The output directory. If not specified the files are overwriten in place.',
+		describe: 'The output directory. If not specified the files are overwritten in place.',
 		string: true,
 		demand: false
 	})
@@ -29,7 +29,7 @@ const argv = yargs
 		demand: false
 	})
 	.option('keepFilenames', {
-		describe: 'Inlines filenames when making localization calls. Only honored when rootDir is set.',
+		describe: 'Inline filenames when making localization calls. Only honored when rootDir is set.',
 		boolean: true,
 		demand: false
 	})
