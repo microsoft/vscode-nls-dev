@@ -402,9 +402,9 @@ function analyze(contents: string, relativeFilename: string | undefined, options
 		return ts.isStringLiteralLike(argument) && vscodeRegExp.test(argument.getText());
 	}
 
-	function findClosestNode(node: ts.Node, textSpan: ts.TextSpan): ts.Node {
+	function findClosestNode(node: ts.Node, textSpan: ts.TextSpan): ts.Node | undefined {
 		let textSpanEnd = textSpan.start + textSpan.length;
-		function loop(node: ts.Node): ts.Node {
+		function loop(node: ts.Node): ts.Node | undefined {
 			const length = node.end - node.pos;
 			if (node.pos === textSpan.start && length === textSpan.length) {
 				return node;
@@ -413,7 +413,7 @@ function analyze(contents: string, relativeFilename: string | undefined, options
 				const candidate = ts.forEachChild(node, loop);
 				return candidate || node;
 			}
-			return node;
+			return undefined;
 		}
 		return loop(node);
 	}
@@ -486,8 +486,10 @@ function analyze(contents: string, relativeFilename: string | undefined, options
 		if (references) {
 			references.forEach(reference => {
 				if (!reference.isWriteAccess) {
-					let node = findClosestNode(sourceFile, reference.textSpan);
-					memo.push(node);
+					const node = findClosestNode(sourceFile, reference.textSpan);
+					if (node) {
+						memo.push(node);
+					}
 				}
 			});
 		}
@@ -529,14 +531,16 @@ function analyze(contents: string, relativeFilename: string | undefined, options
 			if (references) {
 				references.forEach(reference => {
 					if (!reference.isWriteAccess) {
-						let node = findClosestNode(sourceFile, reference.textSpan);
-						if (ts.isIdentifier(node)) {
-							let parent = node.parent;
-							if (ts.isCallExpression(parent) && parent.arguments.length >= 2) {
-								memo.push(parent);
-							} else {
-								let position = ts.getLineAndCharacterOfPosition(sourceFile, node.pos);
-								errors.push(`(${position.line + 1},${position.character + 1}): localize function (bound to ${node.text}) used in an unusual way.`);
+						const node = findClosestNode(sourceFile, reference.textSpan);
+						if (node) {
+							if (ts.isIdentifier(node)) {
+								let parent = node.parent;
+								if (ts.isCallExpression(parent) && parent.arguments.length >= 2) {
+									memo.push(parent);
+								} else {
+									let position = ts.getLineAndCharacterOfPosition(sourceFile, node.pos);
+									errors.push(`(${position.line + 1},${position.character + 1}): localize function (bound to ${node.text}) used in an unusual way.`);
+								}
 							}
 						}
 					}
