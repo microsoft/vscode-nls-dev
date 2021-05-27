@@ -5,14 +5,14 @@
 
 'use strict';
 
-import { relative } from "path";
-import { processFile, removePathPrefix } from "./lib";
+import { relative } from 'path';
+import { processFile, removePathPrefix } from './lib';
 import * as path from 'path';
 
 /**
  * A [webpack loader](https://webpack.js.org/api/loaders/) that rewrite nls-calls.
  */
-module.exports = function (content, map, meta) {
+module.exports = function (this: any, content: any, map: any, meta: any) {
 	console.assert(this.query && typeof this.query.base === 'string', 'Expected {base: string} option');
 
 	const callback = this.async();
@@ -41,4 +41,4 @@ module.exports = function (content, map, meta) {
 		// result
 		callback(null, result.contents, result.sourceMap, meta);
 	}
-}
+};

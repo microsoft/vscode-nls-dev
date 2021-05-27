@@ -1,16 +1,21 @@
 {
 	"compilerOptions": {
-		"target": "es5",
+		"target": "es2017",
 		"module": "commonjs",
 		"lib": [
-			"es2015",
-			"es2015.promise"
+			"es2017"
 		],
 		"moduleResolution": "node",
 		"sourceMap": true,
 		"inlineSources": false,
 		"declaration": true,
 		"stripInternal": true,
+		"strict": true,
+		"noImplicitAny": true,
+		"noImplicitReturns": true,
+		"noImplicitThis": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
 		"outDir": "../lib"
 	}
 }

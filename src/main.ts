@@ -4,18 +4,18 @@
  * ------------------------------------------------------------------------------------------ */
 'use strict';
 
-import { readable, through } from 'event-stream';
-import * as https from 'https';
+import { through, ThroughStream } from 'event-stream';
 import * as Is from 'is';
 import * as path from 'path';
 import { ThroughStream as _ThroughStream } from 'through';
-import { isString } from 'util';
 import * as xml2js from 'xml2js';
-import { bundle2keyValuePair, createLocalizedMessages, JavaScriptMessageBundle, KeyInfo, Map, processFile, resolveMessageBundle, removePathPrefix, BundledMetaDataHeader, BundledMetaDataFile, SingleMetaDataFile, BundledMetaDataEntry, MetaDataBundler } from './lib';
+import {
+	bundle2keyValuePair, createLocalizedMessages, JavaScriptMessageBundle, KeyInfo, Map, processFile, resolveMessageBundle, removePathPrefix, BundledMetaDataHeader,
+	BundledMetaDataFile, SingleMetaDataFile, BundledMetaDataEntry, MetaDataBundler
+} from './lib';
 import File = require('vinyl');
 import * as fancyLog from 'fancy-log';
 import * as ansiColors from 'ansi-colors';
-
 
 function log(message: any, ...rest: any[]): void {
 	fancyLog(ansiColors.cyan('[i18n]'), message, ...rest);
@@ -29,12 +29,6 @@ const NLS_JSON = '.nls.json';
 const NLS_METADATA_JSON = '.nls.metadata.json';
 const I18N_JSON = '.i18n.json';
 
-export interface ThroughStream extends _ThroughStream {
-	queue(data: File | null);
-	push(data: File | null);
-	paused: boolean;
-}
-
 export function rewriteLocalizeCalls(): ThroughStream {
 	return through(
 		function (this: ThroughStream, file: FileWithSourceMap) {
@@ -42,13 +36,13 @@ export function rewriteLocalizeCalls(): ThroughStream {
 				this.emit('error', `Failed to read file: ${file.relative}`);
 				return;
 			}
-			let buffer: Buffer = file.contents as Buffer;
-			let content = buffer.toString('utf8');
-			let sourceMap = file.sourceMap;
+			const buffer: Buffer = file.contents as Buffer;
+			const content = buffer.toString('utf8');
+			const sourceMap = file.sourceMap;
 
-			let result = processFile(content, undefined, sourceMap);
-			let messagesFile: File;
-			let metaDataFile: File;
+			const result = processFile(content, undefined, sourceMap);
+			let messagesFile: File | undefined;
+			let metaDataFile: File | undefined;
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file.relative}${error}`));
 				this.emit('error', `Failed to rewrite file: ${file.path}`);
@@ -126,10 +120,10 @@ export function createMetaDataFiles(): ThroughStream {
 }
 
 export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
-	let base: string = undefined;
+	let base: string | undefined = undefined;
 	const bundler = new MetaDataBundler(id, outDir);
 	return through(function (this: ThroughStream, file: File) {
-		let basename = path.basename(file.relative);
+		const basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
 			this.queue(file);
 			return;
@@ -145,8 +139,8 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 		if (!base) {
 			base = file.base;
 		}
-		let buffer: Buffer = file.contents as Buffer;
-		let json: SingleMetaDataFile = JSON.parse(buffer.toString('utf8'));
+		const buffer: Buffer = file.contents as Buffer;
+		const json: SingleMetaDataFile = JSON.parse(buffer.toString('utf8'));
 		bundler.add(json);
 	}, function () {
 		if (base) {
@@ -167,9 +161,8 @@ export function bundleMetaDataFiles(id: string, outDir: string): ThroughStream {
 }
 
 export interface Language {
-	id: string; // laguage id, e.g. zh-tw, de
+	id: string; // language id, e.g. zh-tw, de
 	folderName?: string; // language specific folder name, e.g. cht, deu  (optional, if not set, the id is used)
-	transifexId?: string; // language specific identifier used in transifex e.g. zh-hant used for zh-tw id.
 }
 
 export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir: string, baseDir?: string, logProblems: boolean = true): ThroughStream {
@@ -177,23 +170,23 @@ export function createAdditionalLanguageFiles(languages: Language[], i18nBaseDir
 		// Queue the original file again.
 		this.queue(file);
 
-		let basename = path.basename(file.relative);
-		let isPackageFile = basename === 'package.nls.json';
-		let isAffected = isPackageFile || basename.match(/nls.metadata.json$/) !== null;
+		const basename = path.basename(file.relative);
+		const isPackageFile = basename === 'package.nls.json';
+		const isAffected = isPackageFile || basename.match(/nls.metadata.json$/) !== null;
 		if (!isAffected) {
 			return;
 		}
-		let filename = isPackageFile
+		const filename = isPackageFile
 			? file.relative.substr(0, file.relative.length - '.nls.json'.length)
 			: file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
 		let json;
 		if (file.isBuffer()) {
-			let buffer: Buffer = file.contents as Buffer;
+			const buffer: Buffer = file.contents as Buffer;
 			json = JSON.parse(buffer.toString('utf8'));
-			let resolvedBundle = resolveMessageBundle(json);
+			const resolvedBundle = resolveMessageBundle(json);
 			languages.forEach((language) => {
-				let folderName = language.folderName || language.id;
-				let result = createLocalizedMessages(filename, resolvedBundle, folderName, i18nBaseDir, baseDir);
+				const folderName = language.folderName || language.id;
+				const result = createLocalizedMessages(filename, resolvedBundle, folderName, i18nBaseDir, baseDir);
 				if (result.problems && result.problems.length > 0 && logProblems) {
 					result.problems.forEach(problem => log(problem));
 				}
@@ -216,25 +209,25 @@ interface ExtensionLanguageBundle {
 	[key: string]: string[];
 }
 
-export function bundleLanguageFiles(): through.ThroughStream {
+export function bundleLanguageFiles(): ThroughStream {
 	interface MapValue {
 		base: string;
 		content: ExtensionLanguageBundle;
-	};
-	let bundles: Map<MapValue> = Object.create(null);
+	}
+	const bundles: Map<MapValue> = Object.create(null);
 	function getModuleKey(relativeFile: string): string {
-		return relativeFile.match(/(.*)\.nls\.(?:.*\.)?json/)[1].replace(/\\/g, '/');
+		return relativeFile.match(/(.*)\.nls\.(?:.*\.)?json/)![1].replace(/\\/g, '/');
 	}
 
 	return through(function (this: ThroughStream, file: File) {
-		let basename = path.basename(file.path);
-		let matches = basename.match(/.nls\.(?:(.*)\.)?json/);
+		const basename = path.basename(file.path);
+		const matches = basename.match(/.nls\.(?:(.*)\.)?json/);
 		if (!matches || !file.isBuffer()) {
 			// Not an nls file.
 			this.queue(file);
 			return;
 		}
-		let language = matches[1] ? matches[1] : 'en';
+		const language = matches[1] ? matches[1] : 'en';
 		let bundle = bundles[language];
 		if (!bundle) {
 			bundle = {
@@ -245,10 +238,10 @@ export function bundleLanguageFiles(): through.ThroughStream {
 		}
 		bundle.content[getModuleKey(file.relative)] = JSON.parse((file.contents as Buffer).toString('utf8'));
 	}, function () {
-		for (let language in bundles) {
-			let bundle = bundles[language];
-			let languageId = language === 'en' ? '' : `${language}.`;
-			let file = new File({
+		for (const language in bundles) {
+			const bundle = bundles[language];
+			const languageId = language === 'en' ? '' : `${language}.`;
+			const file = new File({
 				base: bundle.base,
 				path: path.join(bundle.base, `nls.bundle.${languageId}json`),
 				contents: new Buffer(JSON.stringify(bundle.content), 'utf8')
@@ -259,7 +252,7 @@ export function bundleLanguageFiles(): through.ThroughStream {
 	});
 }
 
-export function debug(prefix: string = ''): through.ThroughStream {
+export function debug(prefix: string = ''): ThroughStream {
 	return through(function (this: ThroughStream, file: File) {
 		console.log(`${prefix}In pipe ${file.path}`);
 		this.queue(file);
@@ -272,26 +265,25 @@ export function debug(prefix: string = ''): through.ThroughStream {
  * @param commentSeparator - if provided comments will be joined into one string using
  *  the commentSeparator value. If omitted comments will be includes as a string array.
  */
-export function createKeyValuePairFile(commentSeparator: string = undefined): through.ThroughStream {
+export function createKeyValuePairFile(commentSeparator: string | undefined = undefined): ThroughStream {
 	return through(function (this: ThroughStream, file: File) {
-		let basename = path.basename(file.relative);
+		const basename = path.basename(file.relative);
 		if (basename.length < NLS_METADATA_JSON.length || NLS_METADATA_JSON !== basename.substr(basename.length - NLS_METADATA_JSON.length)) {
 			this.queue(file);
 			return;
 		}
-		let json;
-		let kvpFile;
-		let filename = file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
+		let kvpFile: File | undefined;
+		const filename = file.relative.substr(0, file.relative.length - NLS_METADATA_JSON.length);
 		if (file.isBuffer()) {
-			let buffer: Buffer = file.contents as Buffer;
-			json = JSON.parse(buffer.toString('utf8'));
+			const buffer: Buffer = file.contents as Buffer;
+			const json = JSON.parse(buffer.toString('utf8'));
 			if (JavaScriptMessageBundle.is(json)) {
-				let resolvedBundle = json as JavaScriptMessageBundle;
+				const resolvedBundle = json as JavaScriptMessageBundle;
 				if (resolvedBundle.messages.length !== resolvedBundle.keys.length) {
 					this.queue(file);
 					return;
 				}
-				let kvpObject = bundle2keyValuePair(resolvedBundle, commentSeparator);
+				const kvpObject = bundle2keyValuePair(resolvedBundle, commentSeparator);
 				kvpFile = new File({
 					base: file.base,
 					path: path.join(file.base, filename) + I18N_JSON,
@@ -312,34 +304,19 @@ export function createKeyValuePairFile(commentSeparator: string = undefined): th
 	});
 }
 
-/**
- * The following code is used to perform JSON->XLF->JSON conversion as well as to update and pull resources from Transifex.
- */
 interface Item {
 	id: string;
 	message: string;
-	comment: string;
+	comment?: string;
 }
 
-interface LocalizeInfo {
-	key: string;
-	comment: string[];
-}
-
-module LocalizeInfo {
-	export function is(value: any): value is LocalizeInfo {
-		let candidate = value as LocalizeInfo;
-		return Is.defined(candidate) && Is.string(candidate.key) && (Is.undef(candidate.comment) || (Is.array(candidate.comment) && candidate.comment.every(element => Is.string(element))));
-	}
-}
-
-interface ValueFormat {
+interface PackageJsonMessageFormat {
 	message: string;
 	comment: string[];
 }
 
 interface PackageJsonFormat {
-	[key: string]: string | ValueFormat;
+	[key: string]: string | PackageJsonMessageFormat;
 }
 
 module PackageJsonFormat {
@@ -353,24 +330,22 @@ module PackageJsonFormat {
 		});
 	}
 }
-interface ModuleJsonFormat {
-	messages: string[];
-	keys: (string | LocalizeInfo)[];
-}
 
-module ModuleJsonFormat {
-	export function is(value: any): value is ModuleJsonFormat {
-		let candidate = value as ModuleJsonFormat;
-		return Is.defined(candidate)
-			&& Is.array(candidate.messages) && candidate.messages.every(message => Is.string(message))
-			&& Is.array(candidate.keys) && candidate.keys.every(key => Is.string(key) || LocalizeInfo.is(key));
+type MessageInfo = string | PackageJsonMessageFormat;
+
+namespace MessageInfo {
+	export function message(value: MessageInfo): string {
+		return typeof value === 'string' ? value : value.message;
+	}
+	export function comment(value: MessageInfo): string[] | undefined {
+		return typeof value === 'string' ? undefined : value.comment;
 	}
 }
 
 export class Line {
 	private buffer: string[] = [];
 
-	constructor(private indent: number = 0) {
+	constructor(indent: number = 0) {
 		if (indent > 0) {
 			this.buffer.push(new Array(indent + 1).join(' '));
 		}
@@ -409,9 +384,9 @@ export class XLF {
 	public toString(): string {
 		this.appendHeader();
 
-		for (let file in this.files) {
+		for (const file in this.files) {
 			this.appendNewLine(`<file original="${file}" source-language="en" datatype="plaintext"><body>`, 2);
-			for (let item of this.files[file]) {
+			for (const item of this.files[file]) {
 				this.addStringItem(item);
 			}
 			this.appendNewLine('</body></file>', 2);
@@ -421,37 +396,35 @@ export class XLF {
 		return this.buffer.join('\r\n');
 	}
 
-	public addFile(original: string, keys: any[], messages: string[]) {
+	public addFile(original: string, keys: KeyInfo[], messages: MessageInfo[]) {
 		if (keys.length === 0) {
 			return;
 		}
 		if (keys.length !== messages.length) {
-			throw new Error(`Unmatching keys(${keys.length}) and messages(${messages.length}).`);
+			throw new Error(`Un-matching keys(${keys.length}) and messages(${messages.length}).`);
 		}
 
 		this.files[original] = [];
-		let existingKeys = [];
+		const existingKeys: Set<string> = new Set();
 
-		for (let key of keys) {
-			// Ignore duplicate keys because Transifex does not populate those with translated values.
-			if (existingKeys.indexOf(key) !== -1) {
+		for (let i = 0; i < keys.length; i++) {
+			const keyInfo = keys[i];
+			const key = KeyInfo.key(keyInfo);
+			if (existingKeys.has(key)) {
 				continue;
 			}
-			existingKeys.push(key);
+			existingKeys.add(key);
 
-			let message: string = encodeEntities(messages[keys.indexOf(key)]);
-			let comment: string = undefined;
-
-			// Check if the message contains description (if so, it becomes an object type in JSON)
-			if (Is.string(key)) {
-				this.files[original].push({ id: key, message: message, comment: comment });
-			} else {
-				if (key['comment'] && key['comment'].length > 0) {
-					comment = key['comment'].map(comment => encodeEntities(comment)).join('\r\n');
+			const messageInfo = messages[i];
+			const message = encodeEntities(MessageInfo.message(messageInfo));
+			const comment: string | undefined = function(comments: string[] | undefined) {
+				if (comments === undefined) {
+					return undefined;
 				}
+				return comments.map(comment => encodeEntities(comment)).join(`\r\n`);
+			}(KeyInfo.comment(keyInfo) ?? MessageInfo.comment(messageInfo));
 
-				this.files[original].push({ id: key['key'], message: message, comment: comment });
-			}
+			this.files[original].push(comment !== undefined ? { id: key, message: message, comment: comment } : { id: key, message: message });
 		}
 	}
 
@@ -480,7 +453,7 @@ export class XLF {
 	}
 
 	private appendNewLine(content: string, indent?: number): void {
-		let line = new Line(indent);
+		const line = new Line(indent);
 		line.append(content);
 		this.buffer.push(line.toString());
 	}
@@ -494,23 +467,22 @@ export class XLF {
 				return target._;
 			}
 			if (Array.isArray(target) && target.length === 1) {
-				let item = target[0];
+				const item = target[0];
 				if (typeof item === 'string') {
 					return item;
 				}
 				if (typeof item._ === 'string') {
-					return item._
+					return item._;
 				}
 				return target[0]._;
 			}
 			return undefined;
-		}
+		};
 		return new Promise((resolve, reject) => {
-			let parser = new xml2js.Parser();
+			const parser = new xml2js.Parser();
+			const files: { messages: Map<string>, originalFilePath: string, language: string }[] = [];
 
-			let files: { messages: Map<string>, originalFilePath: string, language: string }[] = [];
-
-			parser.parseString(xlfString, function (err, result) {
+			parser.parseString(xlfString, function (err: any, result: any) {
 				if (err) {
 					reject(new Error(`Failed to parse XLIFF string. ${err}`));
 				}
@@ -530,10 +502,10 @@ export class XLF {
 						reject(new Error('XLIFF file node does not contain target-language attribute to determine translated language.'));
 					}
 
-					let messages: Map<string> = {};
+					const messages: Map<string> = {};
 					const transUnits = file.body[0]['trans-unit'];
 					if (transUnits) {
-						transUnits.forEach(unit => {
+						transUnits.forEach((unit: any) => {
 							const key = unit.$.id;
 							if (!unit.target) {
 								return; // No translation available
@@ -554,13 +526,13 @@ export class XLF {
 				resolve(files);
 			});
 		});
-	};
+	}
 }
 
 export function createXlfFiles(projectName: string, extensionName: string): ThroughStream {
 	let _xlf: XLF;
-	let header: BundledMetaDataHeader;
-	let data: BundledMetaDataFile;
+	let header: BundledMetaDataHeader | undefined;
+	let data: BundledMetaDataFile | undefined;
 	function getXlf() {
 		if (!_xlf) {
 			_xlf = new XLF(projectName);
@@ -579,13 +551,7 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 			const keys = Object.keys(json);
 			const messages = keys.map((key) => {
 				const value = json[key];
-				if (Is.string(value)) {
-					return value;
-				} else if (value) {
-					return value.message;
-				} else {
-					return `Unknown message for key: ${key}`;
-				}
+				return value === undefined ? `Unknown message for key: ${key}` : value;
 			});
 			getXlf().addFile('package', keys, messages);
 		} else if (basename === 'nls.metadata.json') {
@@ -598,15 +564,15 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 		}
 	}, function (this: ThroughStream) {
 		if (header && data) {
-			let outDir = header.outDir;
-			for (let module in data) {
-				const fileContent = data[module];
+			const outDir = header.outDir;
+			for (const module in data) {
+				const fileContent: BundledMetaDataEntry = data[module];
 				// in the XLF files we only use forward slashes.
 				getXlf().addFile(`${outDir}/${module.replace(/\\/g, '/')}`, fileContent.keys, fileContent.messages);
 			}
 		}
 		if (_xlf) {
-			let xlfFile = new File({
+			const xlfFile = new File({
 				path: path.join(projectName, extensionName + '.xlf'),
 				contents: new Buffer(_xlf.toString(), 'utf8')
 			});
@@ -616,218 +582,12 @@ export function createXlfFiles(projectName: string, extensionName: string): Thro
 	});
 }
 
-export function pushXlfFiles(apiHostname: string, username: string, password: string): ThroughStream {
-	let tryGetPromises = [];
-	let updateCreatePromises = [];
-
-	return through(function (this: ThroughStream, file: File) {
-		const project = path.dirname(file.relative);
-		const fileName = path.basename(file.path);
-		const slug = fileName.substr(0, fileName.length - '.xlf'.length);
-		const credentials = `${username}:${password}`;
-
-		// Check if resource already exists, if not, then create it.
-		let promise = tryGetResource(project, slug, apiHostname, credentials);
-		tryGetPromises.push(promise);
-		promise.then(exists => {
-			if (exists) {
-				promise = updateResource(project, slug, file, apiHostname, credentials);
-			} else {
-				promise = createResource(project, slug, file, apiHostname, credentials);
-			}
-			updateCreatePromises.push(promise);
-		});
-
-	}, function () {
-		// End the pipe only after all the communication with Transifex API happened
-		Promise.all(tryGetPromises).then(() => {
-			Promise.all(updateCreatePromises).then(() => {
-				this.queue(null);
-			}).catch((reason) => { throw new Error(reason); });
-		}).catch((reason) => { throw new Error(reason); });
-	});
-}
-
-function tryGetResource(project: string, slug: string, apiHostname: string, credentials: string): Promise<boolean> {
-	return new Promise((resolve, reject) => {
-		const options = {
-			hostname: apiHostname,
-			path: `/api/2/project/${project}/resource/${slug}/?details`,
-			auth: credentials,
-			method: 'GET'
-		};
-
-		const request = https.request(options, (response) => {
-			if (response.statusCode === 404) {
-				resolve(false);
-			} else if (response.statusCode === 200) {
-				resolve(true);
-			} else {
-				reject(`Failed to query resource ${project}/${slug}. Response: ${response.statusCode} ${response.statusMessage}`);
-			}
-		});
-		request.on('error', (err) => {
-			reject(`Failed to get ${project}/${slug} on Transifex: ${err}`);
-		});
-
-		request.end();
-	});
-}
-
-function createResource(project: string, slug: string, xlfFile: File, apiHostname: string, credentials: any): Promise<any> {
-	return new Promise((resolve, reject) => {
-		const data = JSON.stringify({
-			'content': xlfFile.contents.toString(),
-			'name': slug,
-			'slug': slug,
-			'i18n_type': 'XLIFF'
-		});
-		const options = {
-			hostname: apiHostname,
-			path: `/api/2/project/${project}/resources`,
-			headers: {
-				'Content-Type': 'application/json',
-				'Content-Length': Buffer.byteLength(data)
-			},
-			auth: credentials,
-			method: 'POST'
-		};
-
-		let request = https.request(options, (res) => {
-			if (res.statusCode === 201) {
-				log(`Resource ${project}/${slug} successfully created on Transifex.`);
-			} else {
-				reject(`Something went wrong in the request creating ${slug} in ${project}. ${res.statusCode}`);
-			}
-		});
-		request.on('error', (err) => {
-			reject(`Failed to create ${project}/${slug} on Transifex: ${err}`);
-		});
-
-		request.write(data);
-		request.end();
-	});
-}
-
-/**
- * The following link provides information about how Transifex handles updates of a resource file:
- * https://dev.befoolish.co/tx-docs/public/projects/updating-content#what-happens-when-you-update-files
- */
-function updateResource(project: string, slug: string, xlfFile: File, apiHostname: string, credentials: string): Promise<any> {
-	return new Promise((resolve, reject) => {
-		const data = JSON.stringify({ content: xlfFile.contents.toString() });
-		const options = {
-			hostname: apiHostname,
-			path: `/api/2/project/${project}/resource/${slug}/content`,
-			headers: {
-				'Content-Type': 'application/json',
-				'Content-Length': Buffer.byteLength(data)
-			},
-			auth: credentials,
-			method: 'PUT'
-		};
-
-		let request = https.request(options, (res) => {
-			if (res.statusCode === 200) {
-				res.setEncoding('utf8');
-
-				let responseBuffer: string = '';
-				res.on('data', function (chunk) {
-					responseBuffer += chunk;
-				});
-				res.on('end', () => {
-					const response = JSON.parse(responseBuffer);
-					log(`Resource ${project}/${slug} successfully updated on Transifex. Strings added: ${response.strings_added}, updated: ${response.strings_added}, deleted: ${response.strings_added}`);
-					resolve();
-				});
-			} else {
-				reject(`Something went wrong in the request updating ${slug} in ${project}. ${res.statusCode}`);
-			}
-		});
-		request.on('error', (err) => {
-			reject(`Failed to update ${project}/${slug} on Transifex: ${err}`);
-		});
-
-		request.write(data);
-		request.end();
-	});
-}
-
-/**
- * Fetches a Xlf file from transifex. Returns a file stream with paths `${project}/${slug}.xlf`
- *
- * @param apiHostname The hostname, e.g. www.transifex.com
- * @param username The user name, e.g. api
- * @param password The password or access token
- * @param language The language used to pull.
- * @param resources The list of resources to fetch
- */
-export function pullXlfFiles(apiHostname: string, username: string, password: string, language: Language, resources: Resource[]): NodeJS.ReadableStream {
-	if (!resources) {
-		throw new Error('Transifex projects and resources must be defined to be able to pull translations from Transifex.');
-	}
-
-	const credentials = `${username}:${password}`;
-	let expectedTranslationsCount = resources.length;
-	let translationsRetrieved = 0, called = false;
-
-	return readable(function (count, callback) {
-		// Mark end of stream when all resources were retrieved
-		if (translationsRetrieved === expectedTranslationsCount) {
-			return this.emit('end');
-		}
-
-		if (!called) {
-			called = true;
-			const stream = this;
-
-			resources.map(function (resource) {
-				retrieveResource(language, resource, apiHostname, credentials).then((file: File) => {
-					stream.emit('data', file);
-					translationsRetrieved++;
-				}).catch(error => { throw new Error(error); });
-			});
-		}
-
-		callback();
-	});
-}
-
-function retrieveResource(language: Language, resource: Resource, apiHostname, credentials): Promise<File> {
-	return new Promise<File>((resolve, reject) => {
-		const slug = resource.name.replace(/\//g, '_');
-		const project = resource.project;
-		const transifexLanguageId = language.transifexId || language.id;
-		const options = {
-			hostname: apiHostname,
-			path: `/api/2/project/${project}/resource/${slug}/translation/${transifexLanguageId}?file&mode=onlyreviewed`,
-			auth: credentials,
-			method: 'GET'
-		};
-
-		let request = https.request(options, (res) => {
-			let xlfBuffer: Buffer[] = [];
-			res.on('data', (chunk) => xlfBuffer.push(<Buffer>chunk));
-			res.on('end', () => {
-				if (res.statusCode === 200) {
-					resolve(new File({ contents: Buffer.concat(xlfBuffer), path: `${project}/${slug}.xlf` }));
-				}
-				reject(`${slug} in ${project} returned no data. Response code: ${res.statusCode}.`);
-			});
-		});
-		request.on('error', (err) => {
-			reject(`Failed to query resource ${slug} with the following error: ${err}`);
-		});
-		request.end();
-	});
-}
-
 export function prepareJsonFiles(): ThroughStream {
 	let parsePromises: Promise<ParsedXLF[]>[] = [];
 
 	return through(function (this: ThroughStream, xlf: File) {
 		let stream = this;
-		let parsePromise = XLF.parse(xlf.contents.toString());
+		let parsePromise = XLF.parse(xlf.contents!.toString());
 		parsePromises.push(parsePromise);
 
 		parsePromise.then(
@@ -842,7 +602,7 @@ export function prepareJsonFiles(): ThroughStream {
 	}, function () {
 		Promise.all(parsePromises)
 			.then(() => { this.queue(null); })
-			.catch(reason => { throw new Error(reason); })
+			.catch(reason => { throw new Error(reason); });
 	});
 }
 
