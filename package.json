@@ -31,10 +31,10 @@
 		"@types/webpack": "^4.4.34",
 		"@types/xml2js": "^0.4.2",
 		"@types/yargs": "^16.0.1",
-		"@typescript-eslint/eslint-plugin": "^4.23.0",
-		"@typescript-eslint/parser": "^4.23.0",
-		"eslint": "^7.26.0",
-		"mocha": "^8.4.0"
+		"@typescript-eslint/eslint-plugin": "^4.28.0",
+		"@typescript-eslint/parser": "^4.28.0",
+		"eslint": "^7.29.0",
+		"mocha": "^9.0.1"
 	},
 	"dependencies": {
 		"ansi-colors": "^4.1.1",
@@ -45,7 +45,7 @@
 		"iconv-lite": "^0.6.3",
 		"is": "^3.3.0",
 		"source-map": "^0.6.1",
-		"typescript": "^4.3.2",
+		"typescript": "^4.3.4",
 		"vinyl": "^2.2.1",
 		"xml2js": "^0.4.23",
 		"yargs": "^17.0.1"
