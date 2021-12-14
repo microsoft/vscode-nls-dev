@@ -32,8 +32,7 @@ const argv = yargs
 		describe: 'Inline filenames when making localization calls. Only honored when rootDir is set.',
 		boolean: true,
 		demand: false
-	})
-	.argv;
+	}).parseSync();
 
 let hasError: boolean = false;
 const outDir = argv.outDir ? path.resolve(argv.outDir) : null;
