@@ -80,7 +80,7 @@ argv._.forEach(element => {
 			}
 
 			const relativeFilename = keepFilenames && rootDir ? path.relative(rootDir, resolvedFile) : undefined;
-			const result = processFile(contents, relativeFilename, sourceMapContent);
+			const result = processFile(contents, relativeFilename, undefined, sourceMapContent);
 
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file}${error}`));

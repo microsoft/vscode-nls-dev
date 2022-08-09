@@ -17,7 +17,11 @@ module.exports = function (this: any, content: any, map: any, meta: any) {
 
 	const callback = this.async();
 	const relativePath = relative(this.query.base, this.resourcePath);
-	const result = processFile(content, relativePath, map);
+	const result = processFile(
+		content,
+		relativePath,
+		this.target === 'webworker' || this.target === 'web' ? '/' : undefined,
+		map);
 
 	if (result.errors && result.errors.length > 0) {
 		// error
