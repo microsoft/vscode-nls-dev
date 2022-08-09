@@ -6,6 +6,10 @@ language servers written in TS and JS. It also contains helper methods to conver
 [![NPM Version](https://img.shields.io/npm/v/vscode-nls-dev.svg)](https://npmjs.org/package/vscode-nls-dev)
 [![NPM Downloads](https://img.shields.io/npm/dm/vscode-nls-dev.svg)](https://npmjs.org/package/vscode-nls-dev)
 
+### 4.0.1
+
+* [Allow overriding of baseDir in proccessing files.](https://github.com/microsoft/vscode-nls-dev/pull/41)
+
 ### 4.0.0-next.1
 
 * [Add support for comments in messages (e.g. package.nls.json)](https://github.com/microsoft/vscode-nls-dev/issues/32)

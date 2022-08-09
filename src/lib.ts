@@ -347,7 +347,7 @@ class TextModel {
 	}
 }
 
-function analyze(contents: string, relativeFilename: string | undefined, options: ts.CompilerOptions = {}): AnalysisResult {
+function analyze(contents: string, relativeFilename?: string, baseDir?: string, options: ts.CompilerOptions = {}): AnalysisResult {
 
 	const vscodeRegExp = /^\s*(["'])vscode-nls\1\s*$/;
 
@@ -553,9 +553,10 @@ function analyze(contents: string, relativeFilename: string | undefined, options
 	loadCalls.reduce((memo, loadCall) => {
 		if (loadCall.arguments.length === 0) {
 			const args = loadCall.arguments;
+			const dir = baseDir ? JSON.stringify(baseDir) : '__dirname';
 			patches.push({
 				span: { start: ts.getLineAndCharacterOfPosition(sourceFile, args.pos), end: ts.getLineAndCharacterOfPosition(sourceFile, args.end) },
-				content: relativeFilename ? `require('path').join(__dirname, '${relativeFilename.replace(/\\/g, '\\\\')}')` : '__filename',
+				content: relativeFilename ? `require('path').join(${dir}, '${relativeFilename.replace(/\\/g, '\\\\')}')` : '__filename',
 			});
 		}
 		return memo;
@@ -640,9 +641,8 @@ function analyze(contents: string, relativeFilename: string | undefined, options
 	};
 }
 
-export function processFile(contents: string, relativeFileName: string | undefined, sourceMap?: string | RawSourceMap): { contents: string | undefined, sourceMap: string | undefined, bundle: JavaScriptMessageBundle | undefined, errors: string[] } {
-
-	const analysisResult = analyze(contents, relativeFileName);
+export function processFile(contents: string, relativeFileName?: string, baseDir?: string, sourceMap?: string | RawSourceMap): { contents?: string, sourceMap?: string, bundle?: JavaScriptMessageBundle, errors: string[] } {
+	const analysisResult = analyze(contents, relativeFileName, baseDir);
 	if (analysisResult.patches.length === 0) {
 		return {
 			contents: undefined,

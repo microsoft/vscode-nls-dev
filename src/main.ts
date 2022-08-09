@@ -40,7 +40,7 @@ export function rewriteLocalizeCalls(): ThroughStream {
 			const content = buffer.toString('utf8');
 			const sourceMap = file.sourceMap;
 
-			const result = processFile(content, undefined, sourceMap);
+			const result = processFile(content, undefined, undefined, sourceMap);
 			let messagesFile: File | undefined;
 			let metaDataFile: File | undefined;
 			if (result.errors && result.errors.length > 0) {
@@ -89,7 +89,7 @@ export function createMetaDataFiles(): ThroughStream {
 				return;
 			}
 
-			let result = processFile(file.contents.toString('utf8'), undefined, undefined);
+			let result = processFile(file.contents.toString('utf8'));
 			if (result.errors && result.errors.length > 0) {
 				result.errors.forEach(error => console.error(`${file.relative}${error}`));
 				this.emit('error', `Failed to rewrite file: ${file.path}`);
