@@ -1,6 +1,6 @@
 {
 	"name": "vscode-nls-dev",
-	"version": "4.0.2",
+	"version": "4.0.3",
 	"description": "Development time npm module to generate strings bundles from Javascript files",
 	"author": "Microsoft Corporation",
 	"license": "MIT",
@@ -34,7 +34,8 @@
 		"@typescript-eslint/eslint-plugin": "^4.28.0",
 		"@typescript-eslint/parser": "^4.28.0",
 		"eslint": "^7.29.0",
-		"mocha": "^9.2.0"
+		"mocha": "^9.2.0",
+		"rimraf": "^3.0.2"
 	},
 	"dependencies": {
 		"ansi-colors": "^4.1.1",
@@ -51,6 +52,7 @@
 		"yargs": "^17.3.0"
 	},
 	"scripts": {
+		"prepublishOnly": "rimraf lib && npm run compile && npm test",
 		"compile": "tsc -p ./src",
 		"watch": "tsc -w -p ./src",
 		"test": "mocha",
