@@ -46,7 +46,8 @@ Updating Transifex with latest unlocalized strings is done via `pushXlfFiles('ww
 Here is a sample code that adds localization using Transifex. You can copy and use it as a template for your own extension, changing the values to the ones described in the code comments.
 
 ```javascript
-var nls = require('vscode-nls-dev');
+var nls = require('vscode-nls-dev'),
+    gulp = require('gulp');
 const vscodeLanguages = [
 	'zh-hans',
 	'zh-hant',
@@ -67,7 +68,7 @@ const transifexExtensionName = 'vscode-node-debug'; // your resource name in Tra
 
 gulp.task('transifex-push', function() {
 	return gulp.src('**/*.nls.json')
-		.pipe(nls.prepareXlfFiles(transifexProjectName, transifexExtensionName))
+		.pipe(nls.createXlfFiles(transifexProjectName, transifexExtensionName))
 		.pipe(nls.pushXlfFiles(transifexApiHostname, transifexApiName, transifexApiToken));
 });
 
