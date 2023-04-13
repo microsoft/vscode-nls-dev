@@ -1,4 +1,7 @@
 # vscode-nls-dev
+
+> ⚠️ This package is no longer receiving new features in favor of the new localization library, [vscode-l10n](https://github.com/microsoft/vscode-l10n). Please use that collection of libraries instead.
+
 The tools automates the extraction of strings to be externalized from TS and JS code. It therefore helps localizing VSCode extensions and
 language servers written in TS and JS. It also contains helper methods to convert unlocalized JSON to XLIFF format for translations, and back to localized JSON files, with ability to push and pull localizations from Transifex platform.
 
